@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 publish = false
-description = "Rust parser scaffold for CSS/SCSS/Less style modules"
+description = "Rust parser and CSS Modules intermediate extractor for CSS/SCSS/Less modules"
 readme = "README.md"
 repository = "https://github.com/omenien/omena-engine-style-parser"
 

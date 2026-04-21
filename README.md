@@ -1,6 +1,6 @@
 # `engine-style-parser`
 
-Internal Rust crate for the parser/public-product track.
+Rust parser crate for the parser/public-product track.
 
 Current scope:
 
@@ -10,29 +10,27 @@ Current scope:
   with structured prelude / header / value payloads
 - parser diagnostics for unterminated comments, strings, and blocks
 - bounded Rust-vs-TS parity and CSS Modules intermediate producer binaries
-- parser canonical-candidate / canonical-producer artifacts over those bounded outputs
+- parser canonical-candidate / evaluator-candidates / canonical-producer artifacts
+- parser public-product and consumer-boundary validation over those bounded outputs
 
-Non-goals in this first scaffold:
+Current boundary:
 
-- no TS/runtime integration yet
+- standalone repo created from a history-preserving subtree split of the monorepo parser crate
+- crate name stays `engine-style-parser`
+- repository naming is branded separately as `omena-engine-style-parser`
+- repo CI requires the `rust` status check on `main`
+
+Non-goals in this current scaffold:
+
 - no public package commitment
+- no crates.io publish flow
+- no parser runtime replacement promise outside the bounded validation surface
 
 Standalone checks:
 
 - `cargo test`
 - `cargo fmt --all --check`
 - `cargo clippy --all-targets --all-features -- -D warnings`
-
-Extraction note:
-
-- this branch is a standalone scaffold prototype derived from a history-preserving subtree split
-- repository branding is applied at the repo layer
-- crate naming stays `engine-style-parser` for the first extraction to minimize migration noise
-
-Current naming stance:
-
-- keep crate name: `engine-style-parser`
-- use branded repository naming separately from crate naming
 
 Repository:
 
