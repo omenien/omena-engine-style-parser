@@ -26,10 +26,15 @@ Standalone checks:
 Extraction note:
 
 - this branch is a standalone scaffold prototype derived from a history-preserving subtree split
-- repository naming is intentionally deferred until a parser split decision is made
+- repository branding is applied at the repo layer
 - crate naming stays `engine-style-parser` for the first extraction to minimize migration noise
 
 Current naming stance:
 
 - keep crate name: `engine-style-parser`
-- defer repository/org naming until split execution is explicitly approved
+- use branded repository naming separately from crate naming
+
+Repository:
+
+- GitHub: `omenien/omena-engine-style-parser`
+- CI: `.github/workflows/ci.yml`
