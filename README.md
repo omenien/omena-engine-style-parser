@@ -17,15 +17,19 @@ Non-goals in this first scaffold:
 - no TS/runtime integration yet
 - no public package commitment
 
-Primary check:
+Standalone checks:
 
-- `cargo test --manifest-path rust/Cargo.toml -p engine-style-parser`
-- `pnpm check:rust-parser-css-modules-intermediate`
-- `pnpm check:rust-parser-index-producer`
-- `pnpm check:rust-parser-canonical-candidate`
-- `pnpm check:rust-parser-evaluator-candidates`
-- `pnpm check:rust-parser-canonical-producer`
-- `pnpm check:rust-parser-lane`
-- `pnpm check:rust-parser-public-product`
+- `cargo test`
+- `cargo fmt --all --check`
+- `cargo clippy --all-targets --all-features -- -D warnings`
 
-This crate is intentionally internal. `publish = false` remains in effect at the workspace level.
+Extraction note:
+
+- this branch is a standalone scaffold prototype derived from a history-preserving subtree split
+- repository naming is intentionally deferred until a parser split decision is made
+- crate naming stays `engine-style-parser` for the first extraction to minimize migration noise
+
+Current naming stance:
+
+- keep crate name: `engine-style-parser`
+- defer repository/org naming until split execution is explicitly approved
