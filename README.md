@@ -1,6 +1,6 @@
 # `engine-style-parser`
 
-Rust parser crate for the parser/public-product track.
+Internal Rust crate for the parser/public-product track.
 
 Current scope:
 
@@ -10,29 +10,34 @@ Current scope:
   with structured prelude / header / value payloads
 - parser diagnostics for unterminated comments, strings, and blocks
 - bounded Rust-vs-TS parity and CSS Modules intermediate producer binaries
-- parser canonical-candidate / evaluator-candidates / canonical-producer artifacts
-- parser public-product and consumer-boundary validation over those bounded outputs
+- parser canonical-candidate / canonical-producer artifacts over those bounded outputs
+- Sass symbol seed facts in the CSS Modules intermediate producer for variables,
+  mixins, functions, static `@use` / `@forward` / `@import` module edges, and
+  `@use` namespace seeds
+- same-file Sass resolution seeds for variables, mixin includes, and declared
+  function calls
+- selector attachment seeds for Sass variable refs, mixin includes, and
+  declared function calls
+- selector-scoped Sass symbol occurrence facts with same-file resolution status,
+  byte spans, and shared-style text ranges
 
-Current boundary:
+Non-goals in this first scaffold:
 
-- standalone repo created from a history-preserving subtree split of the monorepo parser crate
-- crate name stays `engine-style-parser`
-- repository naming is branded separately as `omena-engine-style-parser`
-- repo CI requires the `rust` status check on `main`
-
-Non-goals in this current scaffold:
-
+- no TS/runtime integration yet
 - no public package commitment
-- no crates.io publish flow
-- no parser runtime replacement promise outside the bounded validation surface
+- no provider-facing Sass symbol feature yet
+- no cross-file Sass module resolution yet
 
-Standalone checks:
+Primary check:
 
-- `cargo test`
-- `cargo fmt --all --check`
-- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo test --manifest-path rust/Cargo.toml -p engine-style-parser`
+- `pnpm check:rust-parser-css-modules-intermediate`
+- `pnpm check:rust-parser-index-producer`
+- `pnpm check:rust-parser-canonical-candidate`
+- `pnpm check:rust-parser-evaluator-candidates`
+- `pnpm check:rust-parser-canonical-producer`
+- `pnpm check:rust-parser-consumer-boundary`
+- `pnpm check:rust-parser-lane`
+- `pnpm check:rust-parser-public-product`
 
-Repository:
-
-- GitHub: `omenien/omena-engine-style-parser`
-- CI: `.github/workflows/ci.yml`
+This crate is intentionally internal. `publish = false` remains in effect at the workspace level.

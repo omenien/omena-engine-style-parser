@@ -118,6 +118,7 @@ pub enum SelectorSegment {
     ClassName(String),
     Ampersand,
     BemSuffix(String),
+    AmpersandSuffix(String),
     Pseudo(String),
     Combinator(String),
     Other(String),
@@ -138,6 +139,12 @@ pub enum AtRuleKind {
     Keyframes,
     Value,
     AtRoot,
+    Mixin,
+    Include,
+    Function,
+    Use,
+    Forward,
+    Import,
     Generic,
 }
 
@@ -155,6 +162,7 @@ pub struct CommentPayload {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stylesheet {
     pub language: StyleLanguage,
+    pub source: String,
     pub tokens: Vec<Token>,
     pub nodes: Vec<SyntaxNode>,
     pub diagnostics: Vec<ParseDiagnostic>,
@@ -184,9 +192,87 @@ pub struct ParserIndexSummaryV0 {
     pub language: &'static str,
     pub selectors: ParserIndexSelectorFactsV0,
     pub values: ParserIndexValueFactsV0,
+    pub sass: ParserIndexSassFactsV0,
     pub keyframes: ParserIndexKeyframesFactsV0,
     pub composes: ParserIndexComposesFactsV0,
     pub wrappers: ParserIndexWrapperFactsV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserSemanticBoundarySummaryV0 {
+    pub schema_version: &'static str,
+    pub language: &'static str,
+    pub parser_facts: ParserBoundarySyntaxFactsV0,
+    pub semantic_facts: StyleSemanticFactsV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserBoundarySyntaxFactsV0 {
+    pub lossless_cst: ParserLosslessCstFactsV0,
+    pub selectors: ParserIndexSelectorFactsV0,
+    pub values: ParserIndexValueFactsV0,
+    pub sass: ParserSassSyntaxFactsV0,
+    pub keyframes: ParserIndexKeyframesFactsV0,
+    pub composes: ParserIndexComposesFactsV0,
+    pub wrappers: ParserIndexWrapperFactsV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserLosslessCstFactsV0 {
+    pub source_byte_len: usize,
+    pub token_count: usize,
+    pub root_node_count: usize,
+    pub diagnostic_count: usize,
+    pub all_token_spans_within_source: bool,
+    pub all_node_spans_within_source: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserSassSyntaxFactsV0 {
+    pub variable_decl_names: Vec<String>,
+    pub variable_parameter_names: Vec<String>,
+    pub variable_ref_names: Vec<String>,
+    pub mixin_decl_names: Vec<String>,
+    pub mixin_include_names: Vec<String>,
+    pub function_decl_names: Vec<String>,
+    pub function_call_names: Vec<String>,
+    pub module_use_sources: Vec<String>,
+    pub module_use_edges: Vec<ParserIndexSassModuleUseFactV0>,
+    pub module_forward_sources: Vec<String>,
+    pub module_import_sources: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StyleSemanticFactsV0 {
+    pub selector_identity: StyleSelectorIdentityFactsV0,
+    pub sass: StyleSassSemanticFactsV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StyleSelectorIdentityFactsV0 {
+    pub canonical_names: Vec<String>,
+    pub bem_suffix_safe_names: Vec<String>,
+    pub bem_suffix_parent_names: Vec<String>,
+    pub nested_unsafe_names: Vec<String>,
+    pub nested_safety_counts: NestedSafetyCountsV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StyleSassSemanticFactsV0 {
+    pub selector_symbol_facts: Vec<ParserIndexSassSelectorSymbolFactV0>,
+    pub selectors_with_resolved_variable_refs_names: Vec<String>,
+    pub selectors_with_unresolved_variable_refs_names: Vec<String>,
+    pub selectors_with_resolved_mixin_includes_names: Vec<String>,
+    pub selectors_with_unresolved_mixin_includes_names: Vec<String>,
+    pub selectors_with_function_calls_names: Vec<String>,
+    pub same_file_resolution: ParserIndexSassSameFileResolutionFactsV0,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -292,6 +378,91 @@ pub struct ParserIndexValueFactsV0 {
     pub selectors_with_imported_refs_under_media_names: Vec<String>,
     pub selectors_with_imported_refs_under_supports_names: Vec<String>,
     pub selectors_with_imported_refs_under_layer_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserIndexSassFactsV0 {
+    pub variable_decl_names: Vec<String>,
+    pub variable_parameter_names: Vec<String>,
+    pub variable_ref_names: Vec<String>,
+    pub selectors_with_variable_refs_names: Vec<String>,
+    pub selectors_with_resolved_variable_refs_names: Vec<String>,
+    pub selectors_with_unresolved_variable_refs_names: Vec<String>,
+    pub mixin_decl_names: Vec<String>,
+    pub mixin_include_names: Vec<String>,
+    pub selectors_with_mixin_includes_names: Vec<String>,
+    pub selectors_with_resolved_mixin_includes_names: Vec<String>,
+    pub selectors_with_unresolved_mixin_includes_names: Vec<String>,
+    pub function_decl_names: Vec<String>,
+    pub function_call_names: Vec<String>,
+    pub selectors_with_function_calls_names: Vec<String>,
+    pub selector_symbol_facts: Vec<ParserIndexSassSelectorSymbolFactV0>,
+    pub module_use_sources: Vec<String>,
+    pub module_use_edges: Vec<ParserIndexSassModuleUseFactV0>,
+    pub module_forward_sources: Vec<String>,
+    pub module_import_sources: Vec<String>,
+    pub same_file_resolution: ParserIndexSassSameFileResolutionFactsV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserIndexSassModuleUseFactV0 {
+    pub source: String,
+    pub namespace_kind: &'static str,
+    pub namespace: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserIndexSassSameFileResolutionFactsV0 {
+    pub resolved_variable_ref_names: Vec<String>,
+    pub unresolved_variable_ref_names: Vec<String>,
+    pub resolved_mixin_include_names: Vec<String>,
+    pub unresolved_mixin_include_names: Vec<String>,
+    pub resolved_function_call_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserByteSpanV0 {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl From<TextSpan> for ParserByteSpanV0 {
+    fn from(span: TextSpan) -> Self {
+        Self {
+            start: span.start,
+            end: span.end,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserPositionV0 {
+    pub line: usize,
+    pub character: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserRangeV0 {
+    pub start: ParserPositionV0,
+    pub end: ParserPositionV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserIndexSassSelectorSymbolFactV0 {
+    pub selector_name: String,
+    pub symbol_kind: &'static str,
+    pub name: String,
+    pub role: &'static str,
+    pub resolution: &'static str,
+    pub byte_span: ParserByteSpanV0,
+    pub range: ParserRangeV0,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
@@ -433,6 +604,27 @@ struct IndexSummaryAcc {
     declaration_imported_value_ref_sources: Vec<String>,
     value_decl_ref_names: Vec<String>,
     value_decl_imported_value_ref_sources: Vec<String>,
+    sass_variable_decl_names: Vec<String>,
+    sass_variable_decl_facts: Vec<SassVariableDeclFact>,
+    sass_variable_parameter_names: Vec<String>,
+    sass_variable_ref_names: Vec<String>,
+    sass_variable_ref_facts: Vec<SassVariableRefFact>,
+    sass_selectors_with_variable_refs_names: Vec<String>,
+    sass_selectors_with_resolved_variable_refs_names: Vec<String>,
+    sass_selectors_with_unresolved_variable_refs_names: Vec<String>,
+    sass_mixin_decl_names: Vec<String>,
+    sass_mixin_include_names: Vec<String>,
+    sass_selectors_with_mixin_includes_names: Vec<String>,
+    sass_selectors_with_resolved_mixin_includes_names: Vec<String>,
+    sass_selectors_with_unresolved_mixin_includes_names: Vec<String>,
+    sass_function_decl_names: Vec<String>,
+    sass_function_call_names: Vec<String>,
+    sass_selectors_with_function_calls_names: Vec<String>,
+    sass_selector_symbol_facts: Vec<ParserIndexSassSelectorSymbolFactV0>,
+    sass_module_use_sources: Vec<String>,
+    sass_module_use_edges: Vec<ParserIndexSassModuleUseFactV0>,
+    sass_module_forward_sources: Vec<String>,
+    sass_module_import_sources: Vec<String>,
     selectors_with_value_refs_names: Vec<String>,
     selectors_with_local_value_refs_names: Vec<String>,
     selectors_with_imported_value_refs_names: Vec<String>,
@@ -470,6 +662,12 @@ struct IndexSummaryAcc {
     nested_safety_counts: NestedSafetyCountsV0,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ResolvedSelectorBranch {
+    name: String,
+    bare_suffix_base: bool,
+}
+
 pub fn parse_style_module(path: &str, source: &str) -> Option<Stylesheet> {
     let language = StyleLanguage::from_module_path(path)?;
     Some(parse_stylesheet(language, source))
@@ -481,6 +679,7 @@ pub fn parse_stylesheet(language: StyleLanguage, source: &str) -> Stylesheet {
     let nodes = parser.parse_root();
     Stylesheet {
         language,
+        source: source.to_string(),
         tokens,
         nodes,
         diagnostics,
@@ -491,7 +690,6 @@ pub fn summarize_parity_lite(sheet: &Stylesheet) -> ParserParityLiteSummaryV0 {
     let mut acc = ParityLiteAcc::default();
     collect_parity_names(&sheet.nodes, &mut acc);
     acc.selector_names.sort();
-    acc.selector_names.dedup();
     acc.keyframes_names.sort();
     acc.keyframes_names.dedup();
     acc.value_decl_names.sort();
@@ -519,7 +717,7 @@ pub fn summarize_parity_lite(sheet: &Stylesheet) -> ParserParityLiteSummaryV0 {
 
 pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSummaryV0 {
     let mut acc = IndexSummaryAcc::default();
-    collect_index_names(&sheet.nodes, &mut acc, &[], false);
+    collect_index_names(&sheet.nodes, &mut acc, &[], false, None);
     let local_value_names: BTreeSet<String> = acc.value_decl_names.iter().cloned().collect();
     let imported_value_names: BTreeSet<String> = acc.value_import_names.iter().cloned().collect();
     let known_value_names: BTreeSet<String> = acc
@@ -535,53 +733,48 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
     };
     let known_keyframe_names: BTreeSet<String> = acc.keyframes_names.iter().cloned().collect();
     collect_index_refs_and_counts(&sheet.nodes, value_ref_ctx, &known_keyframe_names, &mut acc);
-    collect_index_selector_attachment_facts(
+    let known_sass_function_names: BTreeSet<String> =
+        acc.sass_function_decl_names.iter().cloned().collect();
+    collect_sass_ref_facts(
         &sheet.nodes,
-        value_ref_ctx,
-        &known_keyframe_names,
+        &sheet.source,
+        &known_sass_function_names,
         &mut acc,
-        &[],
-        false,
     );
+    let sass_variable_decl_facts = acc.sass_variable_decl_facts.clone();
+    let sass_mixin_targets: BTreeSet<String> = acc.sass_mixin_decl_names.iter().cloned().collect();
+    let sass_ref_ctx = SassRefContext {
+        variable_decls: &sass_variable_decl_facts,
+        mixin_targets: &sass_mixin_targets,
+        function_targets: &known_sass_function_names,
+    };
+    let selector_attachment_ctx = SelectorAttachmentContext {
+        source: &sheet.source,
+        value_ref_ctx,
+        known_keyframe_names: &known_keyframe_names,
+        sass_ref_ctx,
+    };
+    collect_index_selector_attachment_facts(&sheet.nodes, selector_attachment_ctx, &mut acc, &[]);
 
     acc.selector_names.sort();
-    acc.selector_names.dedup();
     acc.bem_suffix_parent_names.sort();
-    acc.bem_suffix_parent_names.dedup();
     acc.bem_suffix_safe_selector_names.sort();
-    acc.bem_suffix_safe_selector_names.dedup();
     acc.selectors_with_composes_names.sort();
-    acc.selectors_with_composes_names.dedup();
     acc.selectors_with_composes_under_media_names.sort();
-    acc.selectors_with_composes_under_media_names.dedup();
     acc.selectors_with_composes_under_supports_names.sort();
-    acc.selectors_with_composes_under_supports_names.dedup();
     acc.selectors_with_composes_under_layer_names.sort();
-    acc.selectors_with_composes_under_layer_names.dedup();
     acc.local_composes_selector_names.sort();
-    acc.local_composes_selector_names.dedup();
     acc.imported_composes_selector_names.sort();
-    acc.imported_composes_selector_names.dedup();
     acc.global_composes_selector_names.sort();
-    acc.global_composes_selector_names.dedup();
     acc.local_composes_selector_names_under_media.sort();
-    acc.local_composes_selector_names_under_media.dedup();
     acc.local_composes_selector_names_under_supports.sort();
-    acc.local_composes_selector_names_under_supports.dedup();
     acc.local_composes_selector_names_under_layer.sort();
-    acc.local_composes_selector_names_under_layer.dedup();
     acc.imported_composes_selector_names_under_media.sort();
-    acc.imported_composes_selector_names_under_media.dedup();
     acc.imported_composes_selector_names_under_supports.sort();
-    acc.imported_composes_selector_names_under_supports.dedup();
     acc.imported_composes_selector_names_under_layer.sort();
-    acc.imported_composes_selector_names_under_layer.dedup();
     acc.global_composes_selector_names_under_media.sort();
-    acc.global_composes_selector_names_under_media.dedup();
     acc.global_composes_selector_names_under_supports.sort();
-    acc.global_composes_selector_names_under_supports.dedup();
     acc.global_composes_selector_names_under_layer.sort();
-    acc.global_composes_selector_names_under_layer.dedup();
     acc.composes_import_sources.sort();
     acc.composes_import_sources_under_media.sort();
     acc.composes_import_sources_under_supports.sort();
@@ -589,7 +782,6 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
     acc.keyframes_names.sort();
     acc.keyframes_names.dedup();
     acc.nested_unsafe_selector_names.sort();
-    acc.nested_unsafe_selector_names.dedup();
     acc.value_decl_names.sort();
     acc.value_decl_names.dedup();
     acc.value_decl_names_with_local_refs.sort();
@@ -612,70 +804,80 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
     acc.value_decl_ref_names.sort();
     acc.value_decl_ref_names.dedup();
     acc.value_decl_imported_value_ref_sources.sort();
+    acc.sass_variable_decl_names.sort();
+    acc.sass_variable_decl_names.dedup();
+    acc.sass_variable_parameter_names.sort();
+    acc.sass_variable_parameter_names.dedup();
+    acc.sass_variable_ref_names.sort();
+    acc.sass_variable_ref_names.dedup();
+    acc.sass_selectors_with_variable_refs_names.sort();
+    acc.sass_selectors_with_variable_refs_names.dedup();
+    acc.sass_selectors_with_resolved_variable_refs_names.sort();
+    acc.sass_selectors_with_resolved_variable_refs_names.dedup();
+    acc.sass_selectors_with_unresolved_variable_refs_names
+        .sort();
+    acc.sass_selectors_with_unresolved_variable_refs_names
+        .dedup();
+    acc.sass_mixin_decl_names.sort();
+    acc.sass_mixin_decl_names.dedup();
+    acc.sass_mixin_include_names.sort();
+    acc.sass_mixin_include_names.dedup();
+    acc.sass_selectors_with_mixin_includes_names.sort();
+    acc.sass_selectors_with_mixin_includes_names.dedup();
+    acc.sass_selectors_with_resolved_mixin_includes_names.sort();
+    acc.sass_selectors_with_resolved_mixin_includes_names
+        .dedup();
+    acc.sass_selectors_with_unresolved_mixin_includes_names
+        .sort();
+    acc.sass_selectors_with_unresolved_mixin_includes_names
+        .dedup();
+    acc.sass_function_decl_names.sort();
+    acc.sass_function_decl_names.dedup();
+    acc.sass_function_call_names.sort();
+    acc.sass_function_call_names.dedup();
+    acc.sass_selectors_with_function_calls_names.sort();
+    acc.sass_selectors_with_function_calls_names.dedup();
+    acc.sass_selector_symbol_facts.sort();
+    acc.sass_selector_symbol_facts.dedup();
+    acc.sass_module_use_sources.sort();
+    acc.sass_module_use_sources.dedup();
+    acc.sass_module_use_edges.sort();
+    acc.sass_module_use_edges.dedup();
+    acc.sass_module_forward_sources.sort();
+    acc.sass_module_forward_sources.dedup();
+    acc.sass_module_import_sources.sort();
+    acc.sass_module_import_sources.dedup();
     acc.selectors_with_value_refs_names.sort();
-    acc.selectors_with_value_refs_names.dedup();
     acc.selectors_with_local_value_refs_names.sort();
-    acc.selectors_with_local_value_refs_names.dedup();
     acc.selectors_with_imported_value_refs_names.sort();
-    acc.selectors_with_imported_value_refs_names.dedup();
     acc.selectors_with_value_refs_under_media_names.sort();
-    acc.selectors_with_value_refs_under_media_names.dedup();
     acc.selectors_with_value_refs_under_supports_names.sort();
-    acc.selectors_with_value_refs_under_supports_names.dedup();
     acc.selectors_with_value_refs_under_layer_names.sort();
-    acc.selectors_with_value_refs_under_layer_names.dedup();
     acc.selectors_with_local_value_refs_under_media_names.sort();
-    acc.selectors_with_local_value_refs_under_media_names
-        .dedup();
     acc.selectors_with_local_value_refs_under_supports_names
         .sort();
-    acc.selectors_with_local_value_refs_under_supports_names
-        .dedup();
     acc.selectors_with_local_value_refs_under_layer_names.sort();
-    acc.selectors_with_local_value_refs_under_layer_names
-        .dedup();
     acc.selectors_with_imported_value_refs_under_media_names
         .sort();
-    acc.selectors_with_imported_value_refs_under_media_names
-        .dedup();
     acc.selectors_with_imported_value_refs_under_supports_names
         .sort();
-    acc.selectors_with_imported_value_refs_under_supports_names
-        .dedup();
     acc.selectors_with_imported_value_refs_under_layer_names
         .sort();
-    acc.selectors_with_imported_value_refs_under_layer_names
-        .dedup();
     acc.selectors_with_animation_ref_names.sort();
-    acc.selectors_with_animation_ref_names.dedup();
     acc.selectors_with_animation_refs_under_media_names.sort();
-    acc.selectors_with_animation_refs_under_media_names.dedup();
     acc.selectors_with_animation_refs_under_supports_names
         .sort();
-    acc.selectors_with_animation_refs_under_supports_names
-        .dedup();
     acc.selectors_with_animation_refs_under_layer_names.sort();
-    acc.selectors_with_animation_refs_under_layer_names.dedup();
     acc.selectors_with_animation_name_ref_names.sort();
-    acc.selectors_with_animation_name_ref_names.dedup();
     acc.selectors_with_animation_name_refs_under_media_names
         .sort();
-    acc.selectors_with_animation_name_refs_under_media_names
-        .dedup();
     acc.selectors_with_animation_name_refs_under_supports_names
         .sort();
-    acc.selectors_with_animation_name_refs_under_supports_names
-        .dedup();
     acc.selectors_with_animation_name_refs_under_layer_names
         .sort();
-    acc.selectors_with_animation_name_refs_under_layer_names
-        .dedup();
     acc.selectors_under_media_names.sort();
-    acc.selectors_under_media_names.dedup();
     acc.selectors_under_supports_names.sort();
-    acc.selectors_under_supports_names.dedup();
     acc.selectors_under_layer_names.sort();
-    acc.selectors_under_layer_names.dedup();
     acc.animation_ref_names.sort();
     acc.animation_ref_names.dedup();
     acc.animation_name_ref_names.sort();
@@ -690,6 +892,7 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
     let selectors_with_animation_ref_names = acc.selectors_with_animation_ref_names.clone();
     let selectors_with_animation_name_ref_names =
         acc.selectors_with_animation_name_ref_names.clone();
+    let sass_same_file_resolution = summarize_sass_same_file_resolution(&acc);
 
     ParserIndexSummaryV0 {
         schema_version: "0",
@@ -743,6 +946,32 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
                 .selectors_with_imported_value_refs_under_supports_names,
             selectors_with_imported_refs_under_layer_names: acc
                 .selectors_with_imported_value_refs_under_layer_names,
+        },
+        sass: ParserIndexSassFactsV0 {
+            variable_decl_names: acc.sass_variable_decl_names,
+            variable_parameter_names: acc.sass_variable_parameter_names,
+            variable_ref_names: acc.sass_variable_ref_names,
+            selectors_with_variable_refs_names: acc.sass_selectors_with_variable_refs_names,
+            selectors_with_resolved_variable_refs_names: acc
+                .sass_selectors_with_resolved_variable_refs_names,
+            selectors_with_unresolved_variable_refs_names: acc
+                .sass_selectors_with_unresolved_variable_refs_names,
+            mixin_decl_names: acc.sass_mixin_decl_names,
+            mixin_include_names: acc.sass_mixin_include_names,
+            selectors_with_mixin_includes_names: acc.sass_selectors_with_mixin_includes_names,
+            selectors_with_resolved_mixin_includes_names: acc
+                .sass_selectors_with_resolved_mixin_includes_names,
+            selectors_with_unresolved_mixin_includes_names: acc
+                .sass_selectors_with_unresolved_mixin_includes_names,
+            function_decl_names: acc.sass_function_decl_names,
+            function_call_names: acc.sass_function_call_names,
+            selectors_with_function_calls_names: acc.sass_selectors_with_function_calls_names,
+            selector_symbol_facts: acc.sass_selector_symbol_facts,
+            module_use_sources: acc.sass_module_use_sources,
+            module_use_edges: acc.sass_module_use_edges,
+            module_forward_sources: acc.sass_module_forward_sources,
+            module_import_sources: acc.sass_module_import_sources,
+            same_file_resolution: sass_same_file_resolution,
         },
         keyframes: ParserIndexKeyframesFactsV0 {
             names: acc.keyframes_names,
@@ -982,6 +1211,136 @@ pub fn summarize_index_bridge(sheet: &Stylesheet) -> ParserIndexSummaryV0 {
     summarize_css_modules_intermediate(sheet)
 }
 
+pub fn summarize_semantic_boundary(sheet: &Stylesheet) -> ParserSemanticBoundarySummaryV0 {
+    let index = summarize_css_modules_intermediate(sheet);
+    let ParserIndexSummaryV0 {
+        schema_version: _,
+        language,
+        selectors,
+        values,
+        sass,
+        keyframes,
+        composes,
+        wrappers,
+    } = index;
+    let ParserIndexSelectorFactsV0 {
+        names,
+        bem_suffix_parent_names,
+        bem_suffix_safe_names,
+        nested_unsafe_names,
+        selectors_with_value_refs_names,
+        selectors_with_animation_ref_names,
+        selectors_with_animation_name_ref_names,
+        bem_suffix_count,
+        nested_safety_counts,
+    } = selectors;
+    let ParserIndexSassFactsV0 {
+        variable_decl_names,
+        variable_parameter_names,
+        variable_ref_names,
+        selectors_with_variable_refs_names: _,
+        selectors_with_resolved_variable_refs_names,
+        selectors_with_unresolved_variable_refs_names,
+        mixin_decl_names,
+        mixin_include_names,
+        selectors_with_mixin_includes_names: _,
+        selectors_with_resolved_mixin_includes_names,
+        selectors_with_unresolved_mixin_includes_names,
+        function_decl_names,
+        function_call_names,
+        selectors_with_function_calls_names,
+        selector_symbol_facts,
+        module_use_sources,
+        module_use_edges,
+        module_forward_sources,
+        module_import_sources,
+        same_file_resolution,
+    } = sass;
+
+    ParserSemanticBoundarySummaryV0 {
+        schema_version: "0",
+        language,
+        parser_facts: ParserBoundarySyntaxFactsV0 {
+            lossless_cst: summarize_lossless_cst(sheet),
+            selectors: ParserIndexSelectorFactsV0 {
+                names: names.clone(),
+                bem_suffix_parent_names: bem_suffix_parent_names.clone(),
+                bem_suffix_safe_names: bem_suffix_safe_names.clone(),
+                nested_unsafe_names: nested_unsafe_names.clone(),
+                selectors_with_value_refs_names,
+                selectors_with_animation_ref_names,
+                selectors_with_animation_name_ref_names,
+                bem_suffix_count,
+                nested_safety_counts: nested_safety_counts.clone(),
+            },
+            values,
+            sass: ParserSassSyntaxFactsV0 {
+                variable_decl_names,
+                variable_parameter_names,
+                variable_ref_names,
+                mixin_decl_names,
+                mixin_include_names,
+                function_decl_names,
+                function_call_names,
+                module_use_sources,
+                module_use_edges,
+                module_forward_sources,
+                module_import_sources,
+            },
+            keyframes,
+            composes,
+            wrappers,
+        },
+        semantic_facts: StyleSemanticFactsV0 {
+            selector_identity: StyleSelectorIdentityFactsV0 {
+                canonical_names: names,
+                bem_suffix_safe_names,
+                bem_suffix_parent_names,
+                nested_unsafe_names,
+                nested_safety_counts,
+            },
+            sass: StyleSassSemanticFactsV0 {
+                selector_symbol_facts,
+                selectors_with_resolved_variable_refs_names,
+                selectors_with_unresolved_variable_refs_names,
+                selectors_with_resolved_mixin_includes_names,
+                selectors_with_unresolved_mixin_includes_names,
+                selectors_with_function_calls_names,
+                same_file_resolution,
+            },
+        },
+    }
+}
+
+fn summarize_lossless_cst(sheet: &Stylesheet) -> ParserLosslessCstFactsV0 {
+    let source_byte_len = sheet.source.len();
+    ParserLosslessCstFactsV0 {
+        source_byte_len,
+        token_count: sheet.tokens.len(),
+        root_node_count: sheet.nodes.len(),
+        diagnostic_count: sheet.diagnostics.len(),
+        all_token_spans_within_source: sheet
+            .tokens
+            .iter()
+            .all(|token| is_valid_span(token.span, source_byte_len)),
+        all_node_spans_within_source: nodes_have_valid_spans(&sheet.nodes, source_byte_len),
+    }
+}
+
+fn nodes_have_valid_spans(nodes: &[SyntaxNode], source_byte_len: usize) -> bool {
+    nodes.iter().all(|node| {
+        is_valid_span(node.span, source_byte_len)
+            && node
+                .header_span
+                .is_none_or(|span| is_valid_span(span, source_byte_len))
+            && nodes_have_valid_spans(&node.children, source_byte_len)
+    })
+}
+
+fn is_valid_span(span: TextSpan, source_byte_len: usize) -> bool {
+    span.start <= span.end && span.end <= source_byte_len
+}
+
 fn collect_parity_names(nodes: &[SyntaxNode], acc: &mut ParityLiteAcc) {
     collect_parity_names_with_parent(nodes, acc, &[], 0);
 }
@@ -989,11 +1348,11 @@ fn collect_parity_names(nodes: &[SyntaxNode], acc: &mut ParityLiteAcc) {
 fn collect_parity_names_with_parent(
     nodes: &[SyntaxNode],
     acc: &mut ParityLiteAcc,
-    parent_selector_names: &[String],
+    parent_branches: &[ResolvedSelectorBranch],
     depth: usize,
 ) {
     for node in nodes {
-        let mut next_parent_names = parent_selector_names.to_vec();
+        let mut next_parent_branches = parent_branches.to_vec();
         let mut next_depth = depth;
         match &node.payload {
             Some(SyntaxNodePayload::Rule(rule)) => {
@@ -1003,10 +1362,11 @@ fn collect_parity_names_with_parent(
                 if rule.selector_groups.len() > 1 {
                     acc.grouped_selector_count += rule.selector_groups.len();
                 }
-                let resolved = resolve_rule_selector_names(rule, parent_selector_names);
+                let resolved = resolve_rule_selector_branches(rule, parent_branches);
                 if !resolved.is_empty() {
-                    acc.selector_names.extend(resolved.iter().cloned());
-                    next_parent_names = resolved;
+                    acc.selector_names
+                        .extend(resolved.iter().map(|branch| branch.name.clone()));
+                    next_parent_branches = resolved;
                 }
             }
             Some(SyntaxNodePayload::AtRule(at_rule)) => {
@@ -1038,7 +1398,7 @@ fn collect_parity_names_with_parent(
             }
             _ => {}
         }
-        collect_parity_names_with_parent(&node.children, acc, &next_parent_names, next_depth);
+        collect_parity_names_with_parent(&node.children, acc, &next_parent_branches, next_depth);
     }
 }
 
@@ -1050,6 +1410,12 @@ fn increment_at_rule_kind_count(counts: &mut AtRuleKindCountsV0, kind: AtRuleKin
         AtRuleKind::Keyframes => counts.keyframes += 1,
         AtRuleKind::Value => counts.value += 1,
         AtRuleKind::AtRoot => counts.at_root += 1,
+        AtRuleKind::Mixin
+        | AtRuleKind::Include
+        | AtRuleKind::Function
+        | AtRuleKind::Use
+        | AtRuleKind::Forward
+        | AtRuleKind::Import => counts.generic += 1,
         AtRuleKind::Generic => counts.generic += 1,
     }
 }
@@ -1089,6 +1455,47 @@ struct RuleReferenceFacts {
     has_imported_value_refs: bool,
     has_animation_refs: bool,
     has_animation_name_refs: bool,
+    has_sass_variable_refs: bool,
+    has_resolved_sass_variable_refs: bool,
+    has_unresolved_sass_variable_refs: bool,
+    has_sass_mixin_includes: bool,
+    has_resolved_sass_mixin_includes: bool,
+    has_unresolved_sass_mixin_includes: bool,
+    has_sass_function_calls: bool,
+    sass_symbol_facts: Vec<RuleSassSymbolFact>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct RuleSassSymbolFact {
+    symbol_kind: &'static str,
+    name: String,
+    role: &'static str,
+    resolution: &'static str,
+    byte_span: ParserByteSpanV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SassNameSpan {
+    name: String,
+    byte_span: ParserByteSpanV0,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SassVariableDeclFact {
+    name: String,
+    scope: SassVariableScope,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SassVariableRefFact {
+    name: String,
+    byte_span: ParserByteSpanV0,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SassVariableScope {
+    File,
+    Span(TextSpan),
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -1103,6 +1510,21 @@ struct ValueRefContext<'a> {
     known: &'a BTreeSet<String>,
     local: &'a BTreeSet<String>,
     imported: &'a BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SassRefContext<'a> {
+    variable_decls: &'a [SassVariableDeclFact],
+    mixin_targets: &'a BTreeSet<String>,
+    function_targets: &'a BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SelectorAttachmentContext<'a> {
+    source: &'a str,
+    value_ref_ctx: ValueRefContext<'a>,
+    known_keyframe_names: &'a BTreeSet<String>,
+    sass_ref_ctx: SassRefContext<'a>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1145,13 +1567,14 @@ fn increment_declaration_kind_count(counts: &mut DeclarationKindCountsV0, kind: 
 
 fn classify_rule_selector_facts(
     rule: &RulePayload,
-    parent_selector_names: &[String],
+    parent_branches: &[ResolvedSelectorBranch],
     parent_is_grouped: bool,
 ) -> RuleSelectorFacts {
-    let is_nested = rule
-        .selector_groups
-        .iter()
-        .any(|group| group.raw.contains('&'));
+    let is_nested = !parent_branches.is_empty()
+        || rule
+            .selector_groups
+            .iter()
+            .any(|group| group.raw.contains('&'));
     if !is_nested {
         return RuleSelectorFacts {
             nested_safety: NestedSafetyKind::Flat,
@@ -1160,7 +1583,8 @@ fn classify_rule_selector_facts(
     }
 
     let bem_suffix_safe = rule.selector_groups.len() == 1
-        && parent_selector_names.len() == 1
+        && parent_branches.len() == 1
+        && parent_branches[0].bare_suffix_base
         && !parent_is_grouped
         && matches!(
             rule.selector_groups[0].segments.as_slice(),
@@ -1214,88 +1638,261 @@ fn collect_rule_composes_facts(children: &[SyntaxNode]) -> RuleComposesFacts {
     facts
 }
 
+fn declaration_value_span(source: &str, node: &SyntaxNode) -> TextSpan {
+    let header_span = node.header_span.unwrap_or(node.span);
+    let raw = &source[header_span.start..header_span.end];
+    let Some(colon_index) = raw.find(':') else {
+        return TextSpan::new(header_span.end, header_span.end);
+    };
+    trim_source_span(
+        source,
+        TextSpan::new(header_span.start + colon_index + 1, header_span.end),
+    )
+}
+
+fn at_rule_params_span(source: &str, node: &SyntaxNode, at_rule: &AtRulePayload) -> TextSpan {
+    let header_span = node.header_span.unwrap_or(node.span);
+    let raw = &source[header_span.start..header_span.end];
+    let search_start = raw.find('@').map_or(0, |index| index + 1);
+    let Some(name_index) = raw[search_start..].find(&at_rule.name) else {
+        return TextSpan::new(header_span.end, header_span.end);
+    };
+    let params_start = header_span.start + search_start + name_index + at_rule.name.len();
+    trim_source_span(source, TextSpan::new(params_start, header_span.end))
+}
+
+fn trim_source_span(source: &str, span: TextSpan) -> TextSpan {
+    let raw = &source[span.start..span.end];
+    let trimmed_start = raw.len() - raw.trim_start().len();
+    let trimmed_len = raw.trim().len();
+    let start = span.start + trimmed_start;
+    TextSpan::new(start, start + trimmed_len)
+}
+
+fn source_range_for_byte_span(source: &str, span: ParserByteSpanV0) -> ParserRangeV0 {
+    ParserRangeV0 {
+        start: source_position_for_byte_offset(source, span.start),
+        end: source_position_for_byte_offset(source, span.end),
+    }
+}
+
+fn source_position_for_byte_offset(source: &str, offset: usize) -> ParserPositionV0 {
+    let clamped_offset = offset.min(source.len());
+    let mut line = 0usize;
+    let mut character = 0usize;
+
+    for (byte_index, ch) in source.char_indices() {
+        if byte_index >= clamped_offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            character = 0;
+        } else {
+            character += ch.len_utf16();
+        }
+    }
+
+    ParserPositionV0 { line, character }
+}
+
 fn collect_rule_reference_facts(
     children: &[SyntaxNode],
+    source: &str,
     value_ref_ctx: ValueRefContext<'_>,
     known_keyframe_names: &BTreeSet<String>,
+    sass_ref_ctx: SassRefContext<'_>,
 ) -> RuleReferenceFacts {
     let mut facts = RuleReferenceFacts::default();
     for child in children {
-        if let Some(SyntaxNodePayload::Declaration(declaration)) = &child.payload {
-            match classify_declaration_kind(&declaration.property) {
-                DeclarationKind::Composes => {}
-                DeclarationKind::Animation => {
-                    if !find_identifier_matches(&declaration.value, known_keyframe_names).is_empty()
-                    {
-                        facts.has_animation_refs = true;
+        match &child.payload {
+            Some(SyntaxNodePayload::Declaration(declaration)) => {
+                let value_span = declaration_value_span(source, child);
+                match classify_declaration_kind(&declaration.property) {
+                    DeclarationKind::Composes => {}
+                    DeclarationKind::Animation => {
+                        if !find_identifier_matches(&declaration.value, known_keyframe_names)
+                            .is_empty()
+                        {
+                            facts.has_animation_refs = true;
+                        }
+                        extend_rule_value_ref_facts(&mut facts, &declaration.value, value_ref_ctx);
                     }
-                    let value_refs =
-                        find_identifier_matches(&declaration.value, value_ref_ctx.known);
-                    if !value_refs.is_empty() {
-                        facts.has_value_refs = true;
-                        facts.has_local_value_refs |= value_refs
-                            .iter()
-                            .any(|name| value_ref_ctx.local.contains(name));
-                        facts.has_imported_value_refs |= value_refs
-                            .iter()
-                            .any(|name| value_ref_ctx.imported.contains(name));
+                    DeclarationKind::AnimationName => {
+                        if !find_identifier_matches(&declaration.value, known_keyframe_names)
+                            .is_empty()
+                        {
+                            facts.has_animation_name_refs = true;
+                        }
+                        extend_rule_value_ref_facts(&mut facts, &declaration.value, value_ref_ctx);
                     }
-                }
-                DeclarationKind::AnimationName => {
-                    if !find_identifier_matches(&declaration.value, known_keyframe_names).is_empty()
-                    {
-                        facts.has_animation_name_refs = true;
-                    }
-                    let value_refs =
-                        find_identifier_matches(&declaration.value, value_ref_ctx.known);
-                    if !value_refs.is_empty() {
-                        facts.has_value_refs = true;
-                        facts.has_local_value_refs |= value_refs
-                            .iter()
-                            .any(|name| value_ref_ctx.local.contains(name));
-                        facts.has_imported_value_refs |= value_refs
-                            .iter()
-                            .any(|name| value_ref_ctx.imported.contains(name));
+                    DeclarationKind::Generic => {
+                        extend_rule_value_ref_facts(&mut facts, &declaration.value, value_ref_ctx);
                     }
                 }
-                DeclarationKind::Generic => {
-                    let value_refs =
-                        find_identifier_matches(&declaration.value, value_ref_ctx.known);
-                    if !value_refs.is_empty() {
-                        facts.has_value_refs = true;
-                        facts.has_local_value_refs |= value_refs
-                            .iter()
-                            .any(|name| value_ref_ctx.local.contains(name));
-                        facts.has_imported_value_refs |= value_refs
-                            .iter()
-                            .any(|name| value_ref_ctx.imported.contains(name));
-                    }
-                }
+                extend_rule_sass_value_ref_facts(
+                    &mut facts,
+                    &declaration.value,
+                    value_span,
+                    sass_ref_ctx,
+                );
             }
+            Some(SyntaxNodePayload::AtRule(at_rule)) => match at_rule.kind {
+                AtRuleKind::Mixin | AtRuleKind::Function => {}
+                AtRuleKind::Include => {
+                    let params_span = at_rule_params_span(source, child, at_rule);
+                    extend_rule_sass_value_ref_facts(
+                        &mut facts,
+                        &at_rule.params,
+                        params_span,
+                        sass_ref_ctx,
+                    );
+                    if let Some(name_span) =
+                        parse_sass_callable_name_with_span(&at_rule.params, params_span.start)
+                    {
+                        facts.has_sass_mixin_includes = true;
+                        let resolution = if sass_ref_ctx.mixin_targets.contains(&name_span.name) {
+                            facts.has_resolved_sass_mixin_includes = true;
+                            "resolved"
+                        } else {
+                            facts.has_unresolved_sass_mixin_includes = true;
+                            "unresolved"
+                        };
+                        facts.sass_symbol_facts.push(RuleSassSymbolFact {
+                            symbol_kind: "mixin",
+                            name: name_span.name,
+                            role: "include",
+                            resolution,
+                            byte_span: name_span.byte_span,
+                        });
+                    }
+                }
+                _ => {
+                    let params_span = at_rule_params_span(source, child, at_rule);
+                    extend_rule_sass_value_ref_facts(
+                        &mut facts,
+                        &at_rule.params,
+                        params_span,
+                        sass_ref_ctx,
+                    );
+                }
+            },
+            _ => {}
         }
     }
     facts
 }
 
+fn extend_rule_value_ref_facts(
+    facts: &mut RuleReferenceFacts,
+    value: &str,
+    value_ref_ctx: ValueRefContext<'_>,
+) {
+    let value_refs = find_identifier_matches(value, value_ref_ctx.known);
+    if !value_refs.is_empty() {
+        facts.has_value_refs = true;
+        facts.has_local_value_refs |= value_refs
+            .iter()
+            .any(|name| value_ref_ctx.local.contains(name));
+        facts.has_imported_value_refs |= value_refs
+            .iter()
+            .any(|name| value_ref_ctx.imported.contains(name));
+    }
+}
+
+fn extend_rule_sass_value_ref_facts(
+    facts: &mut RuleReferenceFacts,
+    value: &str,
+    value_span: TextSpan,
+    sass_ref_ctx: SassRefContext<'_>,
+) {
+    let variable_refs = find_sass_variable_ref_spans(value, value_span.start);
+    if !variable_refs.is_empty() {
+        facts.has_sass_variable_refs = true;
+        for name_span in variable_refs {
+            let resolution = if resolve_sass_variable_ref(
+                &name_span.name,
+                name_span.byte_span,
+                sass_ref_ctx.variable_decls,
+            ) {
+                facts.has_resolved_sass_variable_refs = true;
+                "resolved"
+            } else {
+                facts.has_unresolved_sass_variable_refs = true;
+                "unresolved"
+            };
+            facts.sass_symbol_facts.push(RuleSassSymbolFact {
+                symbol_kind: "variable",
+                name: name_span.name,
+                role: "reference",
+                resolution,
+                byte_span: name_span.byte_span,
+            });
+        }
+    }
+
+    let function_calls =
+        find_sass_function_call_spans(value, value_span.start, sass_ref_ctx.function_targets);
+    if !function_calls.is_empty() {
+        facts.has_sass_function_calls = true;
+        facts
+            .sass_symbol_facts
+            .extend(
+                function_calls
+                    .into_iter()
+                    .map(|name_span| RuleSassSymbolFact {
+                        symbol_kind: "function",
+                        name: name_span.name,
+                        role: "call",
+                        resolution: "resolved",
+                        byte_span: name_span.byte_span,
+                    }),
+            );
+    }
+}
+
+fn resolve_sass_variable_ref(
+    name: &str,
+    byte_span: ParserByteSpanV0,
+    variable_decls: &[SassVariableDeclFact],
+) -> bool {
+    variable_decls
+        .iter()
+        .any(|decl| decl.name == name && sass_variable_scope_contains(decl.scope, byte_span))
+}
+
+fn sass_variable_scope_contains(scope: SassVariableScope, byte_span: ParserByteSpanV0) -> bool {
+    match scope {
+        SassVariableScope::File => true,
+        SassVariableScope::Span(scope_span) => {
+            scope_span.start <= byte_span.start && scope_span.end >= byte_span.end
+        }
+    }
+}
+
 fn collect_index_names(
     nodes: &[SyntaxNode],
     acc: &mut IndexSummaryAcc,
-    parent_selector_names: &[String],
+    parent_branches: &[ResolvedSelectorBranch],
     parent_is_grouped: bool,
+    current_sass_scope: Option<TextSpan>,
 ) {
     for node in nodes {
-        let mut next_parent_names = parent_selector_names.to_vec();
+        let mut next_parent_branches = parent_branches.to_vec();
         let mut next_parent_is_grouped = false;
         let mut split_child_branches = false;
+        let mut next_sass_scope = current_sass_scope;
         match &node.payload {
             Some(SyntaxNodePayload::Rule(rule)) => {
-                let resolved = resolve_rule_selector_names(rule, parent_selector_names);
-                if !resolved.is_empty() {
-                    let selector_facts = classify_rule_selector_facts(
-                        rule,
-                        parent_selector_names,
-                        parent_is_grouped,
-                    );
+                next_sass_scope = Some(node.span);
+                let resolved_branches = resolve_rule_selector_branches(rule, parent_branches);
+                if !resolved_branches.is_empty() {
+                    let resolved: Vec<String> = resolved_branches
+                        .iter()
+                        .map(|branch| branch.name.clone())
+                        .collect();
+                    let selector_facts =
+                        classify_rule_selector_facts(rule, parent_branches, parent_is_grouped);
                     acc.bem_suffix_count += selector_facts.bem_suffix_count;
                     increment_nested_safety_count(
                         &mut acc.nested_safety_counts,
@@ -1343,8 +1940,8 @@ fn collect_index_names(
                         NestedSafetyKind::BemSuffixSafe => {
                             acc.bem_suffix_safe_selector_names
                                 .extend(resolved.iter().cloned());
-                            if let Some(parent_name) = parent_selector_names.first() {
-                                acc.bem_suffix_parent_names.push(parent_name.clone());
+                            if let Some(parent) = parent_branches.first() {
+                                acc.bem_suffix_parent_names.push(parent.name.clone());
                             }
                         }
                         NestedSafetyKind::NestedUnsafe => {
@@ -1354,10 +1951,31 @@ fn collect_index_names(
                         NestedSafetyKind::Flat => {}
                     }
                     next_parent_is_grouped = resolved.len() > 1;
-                    next_parent_names = resolved;
+                    next_parent_branches = resolved_branches;
                     split_child_branches = true;
                 }
             }
+            Some(SyntaxNodePayload::AtRule(at_rule)) => match at_rule.kind {
+                AtRuleKind::Media
+                | AtRuleKind::Supports
+                | AtRuleKind::Layer
+                | AtRuleKind::AtRoot
+                | AtRuleKind::Mixin
+                | AtRuleKind::Function
+                | AtRuleKind::Generic => {
+                    next_sass_scope = Some(node.span);
+                }
+                AtRuleKind::Keyframes
+                | AtRuleKind::Value
+                | AtRuleKind::Include
+                | AtRuleKind::Use
+                | AtRuleKind::Forward
+                | AtRuleKind::Import => {}
+            },
+            _ => {}
+        }
+
+        match &node.payload {
             Some(SyntaxNodePayload::AtRule(at_rule)) => match at_rule.kind {
                 AtRuleKind::Keyframes if !at_rule.params.is_empty() => {
                     acc.keyframes_names.push(at_rule.params.clone());
@@ -1383,25 +2001,81 @@ fn collect_index_names(
                         acc.value_decl_names.push(name.to_string());
                     }
                 }
+                AtRuleKind::Mixin => {
+                    if let Some(name) = parse_sass_callable_name(&at_rule.params) {
+                        acc.sass_mixin_decl_names.push(name);
+                    }
+                    let parameter_names = parse_sass_parameter_names(&at_rule.params);
+                    acc.sass_variable_decl_facts
+                        .extend(parameter_names.iter().map(|name| SassVariableDeclFact {
+                            name: name.clone(),
+                            scope: SassVariableScope::Span(node.span),
+                        }));
+                    acc.sass_variable_parameter_names.extend(parameter_names);
+                }
+                AtRuleKind::Include => {
+                    if let Some(name) = parse_sass_callable_name(&at_rule.params) {
+                        acc.sass_mixin_include_names.push(name);
+                    }
+                }
+                AtRuleKind::Function => {
+                    if let Some(name) = parse_sass_callable_name(&at_rule.params) {
+                        acc.sass_function_decl_names.push(name);
+                    }
+                    let parameter_names = parse_sass_parameter_names(&at_rule.params);
+                    acc.sass_variable_decl_facts
+                        .extend(parameter_names.iter().map(|name| SassVariableDeclFact {
+                            name: name.clone(),
+                            scope: SassVariableScope::Span(node.span),
+                        }));
+                    acc.sass_variable_parameter_names.extend(parameter_names);
+                }
+                AtRuleKind::Use => {
+                    acc.sass_module_use_sources
+                        .extend(parse_sass_module_sources(&at_rule.params));
+                    acc.sass_module_use_edges
+                        .extend(parse_sass_module_use_edges(&at_rule.params));
+                }
+                AtRuleKind::Forward => {
+                    acc.sass_module_forward_sources
+                        .extend(parse_sass_module_sources(&at_rule.params));
+                }
+                AtRuleKind::Import => {
+                    acc.sass_module_import_sources
+                        .extend(parse_sass_module_sources(&at_rule.params));
+                }
                 _ => {}
             },
+            Some(SyntaxNodePayload::Declaration(declaration)) => {
+                if let Some(name) = parse_sass_variable_decl_name(&declaration.property) {
+                    acc.sass_variable_decl_facts.push(SassVariableDeclFact {
+                        name: name.clone(),
+                        scope: current_sass_scope
+                            .map(SassVariableScope::Span)
+                            .unwrap_or(SassVariableScope::File),
+                    });
+                    acc.sass_variable_decl_names.push(name);
+                }
+            }
             _ => {}
         }
         if split_child_branches {
-            for parent_name in &next_parent_names {
+            for parent_branch in &next_parent_branches {
                 collect_index_names(
                     &node.children,
                     acc,
-                    std::slice::from_ref(parent_name),
+                    std::slice::from_ref(parent_branch),
                     next_parent_is_grouped,
+                    next_sass_scope,
                 );
             }
         } else {
             collect_index_names(
                 &node.children,
                 acc,
-                &next_parent_names,
+                &next_parent_branches,
                 next_parent_is_grouped,
+                next_sass_scope,
             );
         }
     }
@@ -1486,6 +2160,112 @@ fn collect_index_refs_and_counts(
     }
 }
 
+fn collect_sass_ref_facts(
+    nodes: &[SyntaxNode],
+    source: &str,
+    known_function_names: &BTreeSet<String>,
+    acc: &mut IndexSummaryAcc,
+) {
+    for node in nodes {
+        match &node.payload {
+            Some(SyntaxNodePayload::Declaration(declaration)) => {
+                let value_span = declaration_value_span(source, node);
+                let variable_refs =
+                    find_sass_variable_ref_spans(&declaration.value, value_span.start);
+                acc.sass_variable_ref_names
+                    .extend(variable_refs.iter().map(|span| span.name.clone()));
+                acc.sass_variable_ref_facts
+                    .extend(variable_refs.into_iter().map(|span| SassVariableRefFact {
+                        name: span.name,
+                        byte_span: span.byte_span,
+                    }));
+                acc.sass_function_call_names
+                    .extend(find_sass_function_calls(
+                        &declaration.value,
+                        known_function_names,
+                    ));
+            }
+            Some(SyntaxNodePayload::AtRule(at_rule)) => match at_rule.kind {
+                AtRuleKind::Mixin | AtRuleKind::Function => {}
+                _ => {
+                    let params_span = at_rule_params_span(source, node, at_rule);
+                    let variable_refs =
+                        find_sass_variable_ref_spans(&at_rule.params, params_span.start);
+                    acc.sass_variable_ref_names
+                        .extend(variable_refs.iter().map(|span| span.name.clone()));
+                    acc.sass_variable_ref_facts
+                        .extend(variable_refs.into_iter().map(|span| SassVariableRefFact {
+                            name: span.name,
+                            byte_span: span.byte_span,
+                        }));
+                    acc.sass_function_call_names
+                        .extend(find_sass_function_calls(
+                            &at_rule.params,
+                            known_function_names,
+                        ));
+                }
+            },
+            _ => {}
+        }
+        collect_sass_ref_facts(&node.children, source, known_function_names, acc);
+    }
+}
+
+fn summarize_sass_same_file_resolution(
+    acc: &IndexSummaryAcc,
+) -> ParserIndexSassSameFileResolutionFactsV0 {
+    let mixin_targets: BTreeSet<&str> = acc
+        .sass_mixin_decl_names
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let function_targets: BTreeSet<&str> = acc
+        .sass_function_decl_names
+        .iter()
+        .map(String::as_str)
+        .collect();
+
+    let mut resolved_variable_ref_names = BTreeSet::new();
+    let mut unresolved_variable_ref_names = BTreeSet::new();
+    for fact in &acc.sass_variable_ref_facts {
+        if resolve_sass_variable_ref(&fact.name, fact.byte_span, &acc.sass_variable_decl_facts) {
+            resolved_variable_ref_names.insert(fact.name.clone());
+        } else {
+            unresolved_variable_ref_names.insert(fact.name.clone());
+        }
+    }
+
+    ParserIndexSassSameFileResolutionFactsV0 {
+        resolved_variable_ref_names: resolved_variable_ref_names.into_iter().collect(),
+        unresolved_variable_ref_names: unresolved_variable_ref_names.into_iter().collect(),
+        resolved_mixin_include_names: names_matching(&acc.sass_mixin_include_names, &mixin_targets),
+        unresolved_mixin_include_names: names_not_matching(
+            &acc.sass_mixin_include_names,
+            &mixin_targets,
+        ),
+        resolved_function_call_names: names_matching(
+            &acc.sass_function_call_names,
+            &function_targets,
+        ),
+    }
+}
+
+fn names_matching(names: &[String], targets: &BTreeSet<&str>) -> Vec<String> {
+    names
+        .iter()
+        .filter(|name| targets.contains(name.as_str()))
+        .cloned()
+        .collect()
+}
+
+fn names_not_matching(names: &[String], targets: &BTreeSet<&str>) -> Vec<String> {
+    names
+        .iter()
+        .filter(|name| !targets.contains(name.as_str()))
+        .cloned()
+        .collect()
+}
+
 fn extend_value_ref_facts(
     acc: &mut IndexSummaryAcc,
     value_refs: Vec<String>,
@@ -1533,41 +2313,43 @@ fn extend_value_ref_facts(
 
 fn collect_index_selector_attachment_facts(
     nodes: &[SyntaxNode],
-    value_ref_ctx: ValueRefContext<'_>,
-    known_keyframe_names: &BTreeSet<String>,
+    ctx: SelectorAttachmentContext<'_>,
     acc: &mut IndexSummaryAcc,
-    parent_selector_names: &[String],
-    _parent_is_grouped: bool,
+    parent_branches: &[ResolvedSelectorBranch],
 ) {
     collect_index_selector_attachment_facts_with_context(
         nodes,
-        value_ref_ctx,
-        known_keyframe_names,
+        ctx,
         acc,
-        parent_selector_names,
+        parent_branches,
         WrapperContext::default(),
     );
 }
 
 fn collect_index_selector_attachment_facts_with_context(
     nodes: &[SyntaxNode],
-    value_ref_ctx: ValueRefContext<'_>,
-    known_keyframe_names: &BTreeSet<String>,
+    ctx: SelectorAttachmentContext<'_>,
     acc: &mut IndexSummaryAcc,
-    parent_selector_names: &[String],
+    parent_branches: &[ResolvedSelectorBranch],
     wrapper_ctx: WrapperContext,
 ) {
     for node in nodes {
-        let mut next_parent_names = parent_selector_names.to_vec();
+        let mut next_parent_branches = parent_branches.to_vec();
         let mut split_child_branches = false;
         let mut child_wrapper_ctx = wrapper_ctx;
         if let Some(SyntaxNodePayload::Rule(rule)) = &node.payload {
-            let resolved = resolve_rule_selector_names(rule, parent_selector_names);
-            if !resolved.is_empty() {
+            let resolved_branches = resolve_rule_selector_branches(rule, parent_branches);
+            if !resolved_branches.is_empty() {
+                let resolved: Vec<String> = resolved_branches
+                    .iter()
+                    .map(|branch| branch.name.clone())
+                    .collect();
                 let ref_facts = collect_rule_reference_facts(
                     &node.children,
-                    value_ref_ctx,
-                    known_keyframe_names,
+                    ctx.source,
+                    ctx.value_ref_ctx,
+                    ctx.known_keyframe_names,
+                    ctx.sass_ref_ctx,
                 );
                 if ref_facts.has_value_refs {
                     acc.selectors_with_value_refs_names
@@ -1648,6 +2430,48 @@ fn collect_index_selector_attachment_facts_with_context(
                         acc.selectors_with_animation_name_refs_under_layer_names
                             .extend(resolved.iter().cloned());
                     }
+                }
+                if ref_facts.has_sass_variable_refs {
+                    acc.sass_selectors_with_variable_refs_names
+                        .extend(resolved.iter().cloned());
+                }
+                if ref_facts.has_resolved_sass_variable_refs {
+                    acc.sass_selectors_with_resolved_variable_refs_names
+                        .extend(resolved.iter().cloned());
+                }
+                if ref_facts.has_unresolved_sass_variable_refs {
+                    acc.sass_selectors_with_unresolved_variable_refs_names
+                        .extend(resolved.iter().cloned());
+                }
+                if ref_facts.has_sass_mixin_includes {
+                    acc.sass_selectors_with_mixin_includes_names
+                        .extend(resolved.iter().cloned());
+                }
+                if ref_facts.has_resolved_sass_mixin_includes {
+                    acc.sass_selectors_with_resolved_mixin_includes_names
+                        .extend(resolved.iter().cloned());
+                }
+                if ref_facts.has_unresolved_sass_mixin_includes {
+                    acc.sass_selectors_with_unresolved_mixin_includes_names
+                        .extend(resolved.iter().cloned());
+                }
+                if ref_facts.has_sass_function_calls {
+                    acc.sass_selectors_with_function_calls_names
+                        .extend(resolved.iter().cloned());
+                }
+                for selector_name in &resolved {
+                    acc.sass_selector_symbol_facts
+                        .extend(ref_facts.sass_symbol_facts.iter().map(|fact| {
+                            ParserIndexSassSelectorSymbolFactV0 {
+                                selector_name: selector_name.clone(),
+                                symbol_kind: fact.symbol_kind,
+                                name: fact.name.clone(),
+                                role: fact.role,
+                                resolution: fact.resolution,
+                                byte_span: fact.byte_span,
+                                range: source_range_for_byte_span(ctx.source, fact.byte_span),
+                            }
+                        }));
                 }
                 let composes_facts = collect_rule_composes_facts(&node.children);
                 if composes_facts.local_class_name_count > 0
@@ -1736,7 +2560,7 @@ fn collect_index_selector_attachment_facts_with_context(
                     acc.selectors_under_layer_names
                         .extend(resolved.iter().cloned());
                 }
-                next_parent_names = resolved;
+                next_parent_branches = resolved_branches;
                 split_child_branches = true;
             }
         } else if let Some(SyntaxNodePayload::AtRule(at_rule)) = &node.payload {
@@ -1761,23 +2585,21 @@ fn collect_index_selector_attachment_facts_with_context(
         }
 
         if split_child_branches {
-            for parent_name in &next_parent_names {
+            for parent_branch in &next_parent_branches {
                 collect_index_selector_attachment_facts_with_context(
                     &node.children,
-                    value_ref_ctx,
-                    known_keyframe_names,
+                    ctx,
                     acc,
-                    std::slice::from_ref(parent_name),
+                    std::slice::from_ref(parent_branch),
                     child_wrapper_ctx,
                 );
             }
         } else {
             collect_index_selector_attachment_facts_with_context(
                 &node.children,
-                value_ref_ctx,
-                known_keyframe_names,
+                ctx,
                 acc,
-                &next_parent_names,
+                &next_parent_branches,
                 child_wrapper_ctx,
             );
         }
@@ -1871,6 +2693,314 @@ fn parse_quoted_import_source(raw: &str) -> Option<String> {
     Some(trimmed[1..trimmed.len() - 1].to_string())
 }
 
+fn parse_sass_variable_decl_name(property: &str) -> Option<String> {
+    let name = property.trim().strip_prefix('$')?;
+    (!name.is_empty() && name.chars().all(is_sass_ident_continue)).then(|| name.to_string())
+}
+
+fn parse_sass_callable_name(params: &str) -> Option<String> {
+    parse_sass_callable_name_with_span(params, 0).map(|span| span.name)
+}
+
+fn parse_sass_callable_name_with_span(params: &str, base_start: usize) -> Option<SassNameSpan> {
+    let trimmed_start = params.find(|ch: char| !ch.is_whitespace())?;
+    let trimmed = &params[trimmed_start..];
+    let end = trimmed
+        .find(|ch: char| ch.is_whitespace() || ch == '(')
+        .unwrap_or(trimmed.len());
+    let name = &trimmed[..end];
+    (!name.is_empty() && name.chars().all(is_sass_ident_continue)).then(|| SassNameSpan {
+        name: name.to_string(),
+        byte_span: ParserByteSpanV0 {
+            start: base_start + trimmed_start,
+            end: base_start + trimmed_start + end,
+        },
+    })
+}
+
+fn parse_sass_parameter_names(params: &str) -> Vec<String> {
+    let Some(open_index) = params.find('(') else {
+        return Vec::new();
+    };
+    let close_index = params[open_index + 1..]
+        .find(')')
+        .map(|index| open_index + 1 + index)
+        .unwrap_or(params.len());
+    find_sass_variable_refs(&params[open_index + 1..close_index])
+}
+
+fn parse_sass_module_sources(params: &str) -> Vec<String> {
+    let mut sources = Vec::new();
+    let chars: Vec<char> = params.chars().collect();
+    let mut index = 0usize;
+
+    while index < chars.len() {
+        let quote = chars[index];
+        if !matches!(quote, '"' | '\'') {
+            index += 1;
+            continue;
+        }
+        index += 1;
+        let start = index;
+        while index < chars.len() {
+            if chars[index] == '\\' {
+                index = (index + 2).min(chars.len());
+                continue;
+            }
+            if chars[index] == quote {
+                break;
+            }
+            index += 1;
+        }
+        if start < index {
+            sources.push(chars[start..index].iter().collect());
+        }
+        index += usize::from(index < chars.len());
+    }
+
+    sources
+}
+
+fn parse_sass_module_use_edges(params: &str) -> Vec<ParserIndexSassModuleUseFactV0> {
+    let alias = parse_sass_use_alias(params);
+    parse_sass_module_sources(params)
+        .into_iter()
+        .map(|source| match alias.as_deref() {
+            Some("*") => ParserIndexSassModuleUseFactV0 {
+                source,
+                namespace_kind: "wildcard",
+                namespace: None,
+            },
+            Some(namespace) if is_valid_sass_namespace(namespace) => {
+                ParserIndexSassModuleUseFactV0 {
+                    source,
+                    namespace_kind: "alias",
+                    namespace: Some(namespace.to_string()),
+                }
+            }
+            _ => ParserIndexSassModuleUseFactV0 {
+                namespace: default_sass_namespace_for_source(&source),
+                source,
+                namespace_kind: "default",
+            },
+        })
+        .collect()
+}
+
+fn parse_sass_use_alias(params: &str) -> Option<String> {
+    let chars: Vec<char> = params.chars().collect();
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut index = 0usize;
+    let mut quote: Option<char> = None;
+
+    while index < chars.len() {
+        let ch = chars[index];
+        if let Some(active_quote) = quote {
+            if ch == '\\' && index + 1 < chars.len() {
+                index += 2;
+                continue;
+            }
+            if ch == active_quote {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+
+        if ch == '"' || ch == '\'' {
+            if !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+            quote = Some(ch);
+            index += 1;
+            continue;
+        }
+
+        if ch.is_whitespace() || ch == ';' || ch == ',' {
+            if !current.is_empty() {
+                tokens.push(std::mem::take(&mut current));
+            }
+            index += 1;
+            continue;
+        }
+
+        current.push(ch);
+        index += 1;
+    }
+
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+
+    tokens
+        .windows(2)
+        .find_map(|window| (window[0].eq_ignore_ascii_case("as")).then(|| window[1].clone()))
+}
+
+fn default_sass_namespace_for_source(source: &str) -> Option<String> {
+    let clean = source
+        .split(['?', '#'])
+        .next()
+        .unwrap_or(source)
+        .trim_end_matches('/');
+    let segment = clean.rsplit('/').next().unwrap_or(clean);
+    let package_segment = segment.rsplit(':').next().unwrap_or(segment);
+    let stem = package_segment
+        .rsplit_once('.')
+        .map(|(stem, _)| stem)
+        .unwrap_or(package_segment);
+    let stem = stem.strip_prefix('_').unwrap_or(stem);
+
+    is_valid_sass_namespace(stem).then(|| stem.to_string())
+}
+
+fn is_valid_sass_namespace(value: &str) -> bool {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    is_sass_ident_start(first) && chars.all(is_sass_ident_continue)
+}
+
+fn find_sass_variable_refs(raw: &str) -> Vec<String> {
+    find_sass_variable_ref_spans(raw, 0)
+        .into_iter()
+        .map(|span| span.name)
+        .collect()
+}
+
+fn find_sass_variable_ref_spans(raw: &str, base_start: usize) -> Vec<SassNameSpan> {
+    let mut refs = Vec::new();
+    let mut chars = raw.char_indices().peekable();
+    let mut quote: Option<char> = None;
+
+    while let Some((byte_index, ch)) = chars.next() {
+        if let Some(active_quote) = quote {
+            if ch == '\\' {
+                chars.next();
+                continue;
+            }
+            if ch == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+
+        if ch == '"' || ch == '\'' {
+            quote = Some(ch);
+            continue;
+        }
+
+        if ch == '$' {
+            if is_sass_module_qualified_reference(raw, byte_index) {
+                continue;
+            }
+            let name_start = byte_index + ch.len_utf8();
+            let mut name_end = name_start;
+            let mut name = String::new();
+            while let Some(&(next_index, next_ch)) = chars.peek() {
+                if !is_sass_ident_continue(next_ch) {
+                    break;
+                }
+                name.push(next_ch);
+                name_end = next_index + next_ch.len_utf8();
+                chars.next();
+            }
+            if !name.is_empty() {
+                refs.push(SassNameSpan {
+                    name,
+                    byte_span: ParserByteSpanV0 {
+                        start: base_start + byte_index,
+                        end: base_start + name_end,
+                    },
+                });
+            }
+        }
+    }
+
+    refs
+}
+
+fn find_sass_function_calls(raw: &str, known_function_names: &BTreeSet<String>) -> Vec<String> {
+    find_sass_function_call_spans(raw, 0, known_function_names)
+        .into_iter()
+        .map(|span| span.name)
+        .collect()
+}
+
+fn find_sass_function_call_spans(
+    raw: &str,
+    base_start: usize,
+    known_function_names: &BTreeSet<String>,
+) -> Vec<SassNameSpan> {
+    let mut calls = Vec::new();
+    let mut chars = raw.char_indices().peekable();
+    let mut quote: Option<char> = None;
+
+    while let Some((byte_index, ch)) = chars.next() {
+        if let Some(active_quote) = quote {
+            if ch == '\\' {
+                chars.next();
+                continue;
+            }
+            if ch == active_quote {
+                quote = None;
+            }
+            continue;
+        }
+
+        if ch == '"' || ch == '\'' {
+            quote = Some(ch);
+            continue;
+        }
+
+        if is_sass_ident_start(ch) {
+            if is_sass_module_qualified_reference(raw, byte_index) {
+                continue;
+            }
+            let mut name = String::from(ch);
+            let mut name_end = byte_index + ch.len_utf8();
+            while let Some(&(next_index, next_ch)) = chars.peek() {
+                if !is_sass_ident_continue(next_ch) {
+                    break;
+                }
+                name.push(next_ch);
+                name_end = next_index + next_ch.len_utf8();
+                chars.next();
+            }
+            while let Some(&(_, next_ch)) = chars.peek() {
+                if !next_ch.is_whitespace() {
+                    break;
+                }
+                chars.next();
+            }
+            if matches!(chars.peek(), Some(&(_, '('))) && known_function_names.contains(&name) {
+                calls.push(SassNameSpan {
+                    name,
+                    byte_span: ParserByteSpanV0 {
+                        start: base_start + byte_index,
+                        end: base_start + name_end,
+                    },
+                });
+            }
+        }
+    }
+
+    calls
+}
+
+fn is_sass_module_qualified_reference(raw: &str, start: usize) -> bool {
+    if start <= 1 || !raw[..start].ends_with('.') {
+        return false;
+    }
+    let namespace = raw[..start - 1]
+        .rsplit(|ch: char| !is_sass_ident_continue(ch))
+        .next()
+        .unwrap_or("");
+    is_valid_sass_namespace(namespace)
+}
+
 fn find_identifier_matches(raw: &str, known_names: &BTreeSet<String>) -> Vec<String> {
     let mut matches = Vec::new();
     let chars: Vec<char> = raw.chars().collect();
@@ -1930,6 +3060,14 @@ fn is_value_ident_continue(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-' | '$')
 }
 
+fn is_sass_ident_start(ch: char) -> bool {
+    ch.is_ascii_alphabetic() || ch == '_' || ch == '-' || !ch.is_ascii()
+}
+
+fn is_sass_ident_continue(ch: char) -> bool {
+    is_sass_ident_start(ch) || ch.is_ascii_digit()
+}
+
 fn extract_simple_selector_name(prelude: &str) -> Option<String> {
     let trimmed = prelude.trim();
     let rest = trimmed.strip_prefix('.')?;
@@ -1942,40 +3080,104 @@ fn extract_simple_selector_name(prelude: &str) -> Option<String> {
     Some(rest.to_string())
 }
 
-fn resolve_rule_selector_names(
+fn resolve_rule_selector_branches(
     rule: &RulePayload,
-    parent_selector_names: &[String],
-) -> Vec<String> {
-    let mut names = Vec::new();
+    parent_branches: &[ResolvedSelectorBranch],
+) -> Vec<ResolvedSelectorBranch> {
+    let mut branches = Vec::new();
 
     for group in &rule.selector_groups {
-        let resolved = extract_group_selector_names(group, parent_selector_names);
+        let resolved = extract_group_selector_branches(group, parent_branches);
         if !resolved.is_empty() {
-            names.extend(resolved);
+            branches.extend(resolved);
         } else if let Some(local_names) = extract_local_function_selector_names(&group.raw) {
-            names.extend(local_names);
+            branches.extend(repeat_names_for_parent_branches(
+                local_names,
+                parent_branches,
+                false,
+            ));
         } else if let Some(name) = extract_simple_selector_name(&group.raw) {
-            names.push(name);
+            branches.extend(repeat_names_for_parent_branches(
+                vec![name],
+                parent_branches,
+                true,
+            ));
         }
     }
 
-    names
+    branches
 }
 
-fn extract_group_selector_names(
+fn repeat_names_for_parent_branches(
+    names: Vec<String>,
+    parent_branches: &[ResolvedSelectorBranch],
+    bare_when_top_level_single: bool,
+) -> Vec<ResolvedSelectorBranch> {
+    if names.is_empty() {
+        return Vec::new();
+    }
+    if parent_branches.is_empty() {
+        let bare_suffix_base = bare_when_top_level_single && names.len() == 1;
+        return names
+            .into_iter()
+            .map(|name| ResolvedSelectorBranch {
+                name,
+                bare_suffix_base,
+            })
+            .collect();
+    }
+    if parent_branches.len() == 1 {
+        return names
+            .into_iter()
+            .map(|name| ResolvedSelectorBranch {
+                name,
+                bare_suffix_base: false,
+            })
+            .collect();
+    }
+    let mut repeated = Vec::with_capacity(names.len() * parent_branches.len());
+    for _ in parent_branches {
+        repeated.extend(names.iter().cloned().map(|name| ResolvedSelectorBranch {
+            name,
+            bare_suffix_base: false,
+        }));
+    }
+    repeated
+}
+
+fn extract_group_selector_branches(
     group: &SelectorGroup,
-    parent_selector_names: &[String],
-) -> Vec<String> {
+    parent_branches: &[ResolvedSelectorBranch],
+) -> Vec<ResolvedSelectorBranch> {
     match group.segments.as_slice() {
-        [SelectorSegment::ClassName(name)] => vec![name.clone()],
+        [SelectorSegment::ClassName(name)] => {
+            repeat_names_for_parent_branches(vec![name.clone()], parent_branches, true)
+        }
         [
             SelectorSegment::Ampersand,
             SelectorSegment::BemSuffix(suffix),
-        ] => parent_selector_names
+        ] => parent_branches
             .iter()
-            .map(|parent| format!("{parent}{suffix}"))
+            .filter(|parent| parent.bare_suffix_base)
+            .map(|parent| ResolvedSelectorBranch {
+                name: format!("{}{}", parent.name, suffix),
+                bare_suffix_base: true,
+            })
             .collect(),
-        [SelectorSegment::Ampersand, SelectorSegment::ClassName(name)] => vec![name.clone()],
+        [
+            SelectorSegment::Ampersand,
+            SelectorSegment::AmpersandSuffix(suffix),
+        ] => parent_branches
+            .iter()
+            .filter(|parent| parent.bare_suffix_base)
+            .map(|parent| ResolvedSelectorBranch {
+                name: format!("{}{}", parent.name, suffix),
+                bare_suffix_base: true,
+            })
+            .collect(),
+        [SelectorSegment::Ampersand, SelectorSegment::ClassName(name)] => {
+            repeat_names_for_parent_branches(vec![name.clone()], parent_branches, false)
+        }
         segments => {
             let last_combinator = segments
                 .iter()
@@ -1987,6 +3189,20 @@ fn extract_group_selector_names(
             let tail = last_combinator
                 .map(|index| &segments[index + 1..])
                 .unwrap_or(segments);
+            if let [
+                SelectorSegment::Ampersand,
+                SelectorSegment::BemSuffix(suffix) | SelectorSegment::AmpersandSuffix(suffix),
+            ] = tail
+            {
+                return parent_branches
+                    .iter()
+                    .filter(|parent| parent.bare_suffix_base)
+                    .map(|parent| ResolvedSelectorBranch {
+                        name: format!("{}{}", parent.name, suffix),
+                        bare_suffix_base: false,
+                    })
+                    .collect();
+            }
             let names: Vec<String> = tail
                 .iter()
                 .filter_map(|segment| match segment {
@@ -1994,7 +3210,7 @@ fn extract_group_selector_names(
                     _ => None,
                 })
                 .collect();
-            if names.is_empty() { Vec::new() } else { names }
+            repeat_names_for_parent_branches(names, parent_branches, false)
         }
     }
 }
@@ -2115,6 +3331,18 @@ fn parse_selector_segments(raw: &str) -> Vec<SelectorSegment> {
                     segments.push(SelectorSegment::BemSuffix(
                         chars[start..index].iter().collect(),
                     ));
+                } else if index < chars.len()
+                    && !starts_selector_component_after_ampersand(chars[index])
+                {
+                    let start = index;
+                    while index < chars.len() && is_selector_ident_continue(chars[index]) {
+                        index += 1;
+                    }
+                    if start < index {
+                        segments.push(SelectorSegment::AmpersandSuffix(
+                            chars[start..index].iter().collect(),
+                        ));
+                    }
                 }
             }
             ':' => {
@@ -2176,6 +3404,13 @@ fn parse_selector_segments(raw: &str) -> Vec<SelectorSegment> {
 
 fn is_selector_ident_continue(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || matches!(ch, '_' | '-') || !ch.is_ascii()
+}
+
+fn starts_selector_component_after_ampersand(ch: char) -> bool {
+    matches!(
+        ch,
+        ':' | '.' | '[' | '#' | '>' | '+' | '~' | ',' | '*' | ')' | '}' | ']'
+    ) || ch.is_whitespace()
 }
 
 fn tokenize(language: StyleLanguage, source: &str) -> (Vec<Token>, Vec<ParseDiagnostic>) {
@@ -2588,6 +3823,12 @@ fn classify_at_rule_kind(name: &str) -> AtRuleKind {
         "keyframes" | "-webkit-keyframes" => AtRuleKind::Keyframes,
         "value" => AtRuleKind::Value,
         "at-root" => AtRuleKind::AtRoot,
+        "mixin" => AtRuleKind::Mixin,
+        "include" => AtRuleKind::Include,
+        "function" => AtRuleKind::Function,
+        "use" => AtRuleKind::Use,
+        "forward" => AtRuleKind::Forward,
+        "import" => AtRuleKind::Import,
         _ => AtRuleKind::Generic,
     }
 }
@@ -2595,8 +3836,10 @@ fn classify_at_rule_kind(name: &str) -> AtRuleKind {
 #[cfg(test)]
 mod tests {
     use super::{
-        AtRuleKind, AtRulePayload, DeclarationPayload, RulePayload, SelectorGroup, SelectorSegment,
-        StyleLanguage, SyntaxNodeKind, SyntaxNodePayload, TextSpan, TokenKind, parse_stylesheet,
+        AtRuleKind, AtRulePayload, DeclarationPayload, ParserByteSpanV0,
+        ParserIndexSassModuleUseFactV0, ParserIndexSassSelectorSymbolFactV0, ParserPositionV0,
+        ParserRangeV0, RulePayload, SelectorGroup, SelectorSegment, StyleLanguage, SyntaxNodeKind,
+        SyntaxNodePayload, TextSpan, TokenKind, parse_stylesheet,
     };
 
     fn token_texts<'a>(source: &'a str, sheet: &super::Stylesheet) -> Vec<(TokenKind, &'a str)> {
@@ -2605,6 +3848,25 @@ mod tests {
             .iter()
             .map(|token| (token.kind, &source[token.span.start..token.span.end]))
             .collect()
+    }
+
+    fn span_after(source: &str, anchor: &str, needle: &str) -> Result<ParserByteSpanV0, String> {
+        let anchor_start = source
+            .find(anchor)
+            .ok_or_else(|| format!("missing anchor {anchor:?}"))?;
+        let relative_start = source[anchor_start..]
+            .find(needle)
+            .ok_or_else(|| format!("missing needle {needle:?} after {anchor:?}"))?;
+        let start = anchor_start + relative_start;
+        Ok(ParserByteSpanV0 {
+            start,
+            end: start + needle.len(),
+        })
+    }
+
+    fn range_after(source: &str, anchor: &str, needle: &str) -> Result<ParserRangeV0, String> {
+        span_after(source, anchor, needle)
+            .map(|span| super::source_range_for_byte_span(source, span))
     }
 
     #[test]
@@ -2750,6 +4012,37 @@ mod tests {
     }
 
     #[test]
+    fn classifies_sass_symbol_at_rules() {
+        let source = r#"@use "./tokens" as tokens;
+@forward "./theme";
+@import "./legacy";
+@mixin raised($depth) { color: red; }
+@include raised($gap);
+@function tone($value) { @return $value; }
+"#;
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let kinds: Vec<AtRuleKind> = sheet
+            .nodes
+            .iter()
+            .filter_map(|node| match &node.payload {
+                Some(SyntaxNodePayload::AtRule(at_rule)) => Some(at_rule.kind),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                AtRuleKind::Use,
+                AtRuleKind::Forward,
+                AtRuleKind::Import,
+                AtRuleKind::Mixin,
+                AtRuleKind::Include,
+                AtRuleKind::Function,
+            ]
+        );
+    }
+
+    #[test]
     fn records_unterminated_block_comment_diagnostic() {
         let source = "/* open";
         let sheet = parse_stylesheet(StyleLanguage::Scss, source);
@@ -2836,7 +4129,70 @@ mod tests {
         let source = ".a, .b { &.active { color: red; } }";
         let sheet = parse_stylesheet(StyleLanguage::Scss, source);
         let summary = super::summarize_parity_lite(&sheet);
-        assert_eq!(summary.selector_names, vec!["a", "active", "b"]);
+        assert_eq!(summary.selector_names, vec!["a", "active", "active", "b"]);
+    }
+
+    #[test]
+    fn index_summary_matches_nested_bem_safety_matrix() {
+        let source = ".btn { &--primary {} &__icon {} &.active {} &-legacy {} &_legacy {} & + &--paired {} }";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+        assert_eq!(
+            summary.selectors.names,
+            vec![
+                "active",
+                "btn",
+                "btn--paired",
+                "btn--primary",
+                "btn-legacy",
+                "btn__icon",
+                "btn_legacy"
+            ]
+        );
+        assert_eq!(
+            summary.selectors.bem_suffix_safe_names,
+            vec!["btn--primary", "btn__icon"]
+        );
+        assert_eq!(
+            summary.selectors.nested_unsafe_names,
+            vec!["active", "btn--paired", "btn-legacy", "btn_legacy"]
+        );
+    }
+
+    #[test]
+    fn index_summary_does_not_bem_expand_non_bare_parent_suffixes() {
+        let source = ".card:hover { &--primary {} }";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+        assert_eq!(summary.selectors.names, vec!["card"]);
+        assert_eq!(summary.selectors.bem_suffix_count, 0);
+    }
+
+    #[test]
+    fn index_summary_marks_plain_nested_selectors_unsafe() {
+        let source = ".wrapper { .inner { &--mod {} } }";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+        assert_eq!(summary.selectors.names, vec!["inner", "wrapper"]);
+        assert_eq!(summary.selectors.nested_unsafe_names, vec!["inner"]);
+        assert_eq!(summary.selectors.nested_safety_counts.flat, 1);
+        assert_eq!(summary.selectors.nested_safety_counts.nested_unsafe, 1);
+    }
+
+    #[test]
+    fn index_summary_allows_unsafe_suffix_to_become_deep_bem_base() {
+        let source = ".btn { &-legacy { &--x {} } }";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+        assert_eq!(
+            summary.selectors.names,
+            vec!["btn", "btn-legacy", "btn-legacy--x"]
+        );
+        assert_eq!(
+            summary.selectors.bem_suffix_safe_names,
+            vec!["btn-legacy--x"]
+        );
+        assert_eq!(summary.selectors.nested_unsafe_names, vec!["btn-legacy"]);
     }
 
     #[test]
@@ -2909,5 +4265,451 @@ mod tests {
         let sheet = parse_stylesheet(StyleLanguage::Scss, source);
         let summary = super::summarize_parity_lite(&sheet);
         assert_eq!(summary.selector_names, vec!["foo"]);
+    }
+
+    #[test]
+    fn index_summary_collects_sass_symbol_seed_facts() -> Result<(), String> {
+        let source = r#"@use "./plain";
+@use "./reset" as *;
+@use "./tokens" as tokens;
+@use "sass:color";
+@forward "./theme";
+@import "./legacy";
+$gap: 1rem;
+@mixin raised($depth) { box-shadow: 0 0 $depth black; }
+@function tone($value) { @return $value; }
+.btn { color: $gap; @include raised($gap); border-color: tone($gap); }
+.ghost { color: $missing; @include absent($gap); }
+"#;
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+
+        assert_eq!(summary.sass.variable_decl_names, vec!["gap"]);
+        assert_eq!(
+            summary.sass.variable_parameter_names,
+            vec!["depth", "value"]
+        );
+        assert_eq!(
+            summary.sass.variable_ref_names,
+            vec!["depth", "gap", "missing", "value"]
+        );
+        assert_eq!(
+            summary.sass.selectors_with_variable_refs_names,
+            vec!["btn", "ghost"]
+        );
+        assert_eq!(
+            summary.sass.selectors_with_resolved_variable_refs_names,
+            vec!["btn", "ghost"]
+        );
+        assert_eq!(
+            summary.sass.selectors_with_unresolved_variable_refs_names,
+            vec!["ghost"]
+        );
+        assert_eq!(summary.sass.mixin_decl_names, vec!["raised"]);
+        assert_eq!(summary.sass.mixin_include_names, vec!["absent", "raised"]);
+        assert_eq!(
+            summary.sass.selectors_with_mixin_includes_names,
+            vec!["btn", "ghost"]
+        );
+        assert_eq!(
+            summary.sass.selectors_with_resolved_mixin_includes_names,
+            vec!["btn"]
+        );
+        assert_eq!(
+            summary.sass.selectors_with_unresolved_mixin_includes_names,
+            vec!["ghost"]
+        );
+        assert_eq!(summary.sass.function_decl_names, vec!["tone"]);
+        assert_eq!(summary.sass.function_call_names, vec!["tone"]);
+        assert_eq!(
+            summary.sass.selectors_with_function_calls_names,
+            vec!["btn"]
+        );
+        assert_eq!(
+            summary.sass.selector_symbol_facts,
+            vec![
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "function",
+                    name: "tone".to_string(),
+                    role: "call",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "border-color:", "tone")?,
+                    range: range_after(source, "border-color:", "tone")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "mixin",
+                    name: "raised".to_string(),
+                    role: "include",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "@include", "raised")?,
+                    range: range_after(source, "@include", "raised")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "variable",
+                    name: "gap".to_string(),
+                    role: "reference",
+                    resolution: "resolved",
+                    byte_span: span_after(source, ".btn { color", "$gap")?,
+                    range: range_after(source, ".btn { color", "$gap")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "variable",
+                    name: "gap".to_string(),
+                    role: "reference",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "@include raised(", "$gap")?,
+                    range: range_after(source, "@include raised(", "$gap")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "variable",
+                    name: "gap".to_string(),
+                    role: "reference",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "border-color: tone(", "$gap")?,
+                    range: range_after(source, "border-color: tone(", "$gap")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "ghost".to_string(),
+                    symbol_kind: "mixin",
+                    name: "absent".to_string(),
+                    role: "include",
+                    resolution: "unresolved",
+                    byte_span: span_after(source, ".ghost", "absent")?,
+                    range: range_after(source, ".ghost", "absent")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "ghost".to_string(),
+                    symbol_kind: "variable",
+                    name: "gap".to_string(),
+                    role: "reference",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "absent(", "$gap")?,
+                    range: range_after(source, "absent(", "$gap")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "ghost".to_string(),
+                    symbol_kind: "variable",
+                    name: "missing".to_string(),
+                    role: "reference",
+                    resolution: "unresolved",
+                    byte_span: span_after(source, ".ghost { color", "$missing")?,
+                    range: range_after(source, ".ghost { color", "$missing")?,
+                },
+            ]
+        );
+        assert_eq!(
+            summary.sass.module_use_sources,
+            vec!["./plain", "./reset", "./tokens", "sass:color"]
+        );
+        assert_eq!(
+            summary.sass.module_use_edges,
+            vec![
+                ParserIndexSassModuleUseFactV0 {
+                    source: "./plain".to_string(),
+                    namespace_kind: "default",
+                    namespace: Some("plain".to_string()),
+                },
+                ParserIndexSassModuleUseFactV0 {
+                    source: "./reset".to_string(),
+                    namespace_kind: "wildcard",
+                    namespace: None,
+                },
+                ParserIndexSassModuleUseFactV0 {
+                    source: "./tokens".to_string(),
+                    namespace_kind: "alias",
+                    namespace: Some("tokens".to_string()),
+                },
+                ParserIndexSassModuleUseFactV0 {
+                    source: "sass:color".to_string(),
+                    namespace_kind: "default",
+                    namespace: Some("color".to_string()),
+                },
+            ]
+        );
+        assert_eq!(summary.sass.module_forward_sources, vec!["./theme"]);
+        assert_eq!(summary.sass.module_import_sources, vec!["./legacy"]);
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .resolved_variable_ref_names,
+            vec!["depth", "gap", "value"]
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .unresolved_variable_ref_names,
+            vec!["missing"]
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .resolved_mixin_include_names,
+            vec!["raised"]
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .unresolved_mixin_include_names,
+            vec!["absent"]
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .resolved_function_call_names,
+            vec!["tone"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn semantic_boundary_separates_parser_syntax_from_semantic_resolution() -> Result<(), String> {
+        let source = r#"@use "./tokens" as tokens;
+$gap: 1rem;
+@mixin raised($depth) { box-shadow: 0 0 $depth black; }
+.btn { color: $gap; @include raised($gap); }
+.ghost { color: $missing; }
+"#;
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_semantic_boundary(&sheet);
+
+        assert_eq!(
+            summary.parser_facts.sass.module_use_edges,
+            vec![ParserIndexSassModuleUseFactV0 {
+                source: "./tokens".to_string(),
+                namespace_kind: "alias",
+                namespace: Some("tokens".to_string()),
+            }]
+        );
+        assert_eq!(
+            summary.parser_facts.sass.variable_ref_names,
+            vec!["depth", "gap", "missing"]
+        );
+        assert_eq!(
+            summary
+                .semantic_facts
+                .sass
+                .same_file_resolution
+                .resolved_variable_ref_names,
+            vec!["depth", "gap"]
+        );
+        assert_eq!(
+            summary
+                .semantic_facts
+                .sass
+                .same_file_resolution
+                .unresolved_variable_ref_names,
+            vec!["missing"]
+        );
+        assert_eq!(
+            summary.semantic_facts.selector_identity.canonical_names,
+            vec!["btn", "ghost"]
+        );
+        assert_eq!(
+            summary.semantic_facts.sass.selector_symbol_facts,
+            vec![
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "mixin",
+                    name: "raised".to_string(),
+                    role: "include",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "@include", "raised")?,
+                    range: range_after(source, "@include", "raised")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "variable",
+                    name: "gap".to_string(),
+                    role: "reference",
+                    resolution: "resolved",
+                    byte_span: span_after(source, ".btn { color", "$gap")?,
+                    range: range_after(source, ".btn { color", "$gap")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "btn".to_string(),
+                    symbol_kind: "variable",
+                    name: "gap".to_string(),
+                    role: "reference",
+                    resolution: "resolved",
+                    byte_span: span_after(source, "@include raised(", "$gap")?,
+                    range: range_after(source, "@include raised(", "$gap")?,
+                },
+                ParserIndexSassSelectorSymbolFactV0 {
+                    selector_name: "ghost".to_string(),
+                    symbol_kind: "variable",
+                    name: "missing".to_string(),
+                    role: "reference",
+                    resolution: "unresolved",
+                    byte_span: span_after(source, ".ghost { color", "$missing")?,
+                    range: range_after(source, ".ghost { color", "$missing")?,
+                },
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn semantic_boundary_reports_lossless_cst_span_contract() {
+        let source = "// heading\n.card { &--primary { color: red; } }\n";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_semantic_boundary(&sheet);
+
+        assert_eq!(
+            summary.parser_facts.lossless_cst.source_byte_len,
+            source.len()
+        );
+        assert!(summary.parser_facts.lossless_cst.token_count > 0);
+        assert_eq!(summary.parser_facts.lossless_cst.diagnostic_count, 0);
+        assert!(
+            summary
+                .parser_facts
+                .lossless_cst
+                .all_token_spans_within_source
+        );
+        assert!(
+            summary
+                .parser_facts
+                .lossless_cst
+                .all_node_spans_within_source
+        );
+    }
+
+    #[test]
+    fn index_summary_does_not_resolve_sass_variables_from_another_local_scope() -> Result<(), String>
+    {
+        let source = ".one { $gap: 1rem; }\n.two { color: $gap; }\n";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+
+        assert_eq!(
+            summary.sass.selectors_with_resolved_variable_refs_names,
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            summary.sass.selectors_with_unresolved_variable_refs_names,
+            vec!["two"]
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .resolved_variable_ref_names,
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .unresolved_variable_ref_names,
+            vec!["gap"]
+        );
+        assert_eq!(
+            summary.sass.selector_symbol_facts,
+            vec![ParserIndexSassSelectorSymbolFactV0 {
+                selector_name: "two".to_string(),
+                symbol_kind: "variable",
+                name: "gap".to_string(),
+                role: "reference",
+                resolution: "unresolved",
+                byte_span: span_after(source, ".two", "$gap")?,
+                range: range_after(source, ".two", "$gap")?,
+            }]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn index_summary_skips_module_qualified_sass_refs_from_same_file_resolution() {
+        let source = r#"@use "./tokens" as tokens;
+@mixin raised { box-shadow: none; }
+@function tone($value) { @return $value; }
+.button {
+  color: tokens.$gap;
+  @include tokens.raised;
+  border-color: tokens.tone(tokens.$gap);
+}
+"#;
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+
+        assert_eq!(summary.sass.variable_ref_names, vec!["value"]);
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .resolved_variable_ref_names,
+            vec!["value"]
+        );
+        assert_eq!(
+            summary
+                .sass
+                .same_file_resolution
+                .unresolved_variable_ref_names,
+            Vec::<String>::new()
+        );
+        assert_eq!(summary.sass.mixin_include_names, Vec::<String>::new());
+        assert_eq!(summary.sass.function_call_names, Vec::<String>::new());
+        assert_eq!(
+            summary.sass.selectors_with_variable_refs_names,
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            summary.sass.selectors_with_mixin_includes_names,
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            summary.sass.selectors_with_function_calls_names,
+            Vec::<String>::new()
+        );
+        assert_eq!(summary.sass.selector_symbol_facts, Vec::new());
+        assert_eq!(
+            summary.sass.module_use_edges,
+            vec![ParserIndexSassModuleUseFactV0 {
+                source: "./tokens".to_string(),
+                namespace_kind: "alias",
+                namespace: Some("tokens".to_string()),
+            }]
+        );
+    }
+
+    #[test]
+    fn index_summary_reports_sass_symbol_ranges_after_non_ascii_text() -> Result<(), String> {
+        let source = "$gap: 1rem;\n.btn { content: \"한🙂\"; color: $gap; }\n";
+        let sheet = parse_stylesheet(StyleLanguage::Scss, source);
+        let summary = super::summarize_css_modules_intermediate(&sheet);
+
+        assert_eq!(
+            summary.sass.selector_symbol_facts,
+            vec![ParserIndexSassSelectorSymbolFactV0 {
+                selector_name: "btn".to_string(),
+                symbol_kind: "variable",
+                name: "gap".to_string(),
+                role: "reference",
+                resolution: "resolved",
+                byte_span: ParserByteSpanV0 { start: 46, end: 50 },
+                range: ParserRangeV0 {
+                    start: ParserPositionV0 {
+                        line: 1,
+                        character: 30,
+                    },
+                    end: ParserPositionV0 {
+                        line: 1,
+                        character: 34,
+                    },
+                },
+            }]
+        );
+
+        Ok(())
     }
 }
