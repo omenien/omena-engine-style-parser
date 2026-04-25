@@ -1,12 +1,16 @@
 [package]
-name = "engine-style-parser"
+name = "omena-engine-style-parser"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-publish = false
-description = "Rust parser and CSS Modules intermediate extractor for CSS/SCSS/Less modules"
+description = "Parser and CSS Modules intermediate extractor for Omena CSS analysis"
 repository = "https://github.com/omenien/omena-engine-style-parser"
 readme = "README.md"
+keywords = ["omena", "css-modules", "parser", "scss", "less"]
+categories = ["development-tools", "parser-implementations"]
+
+[lib]
+name = "engine_style_parser"
 
 [lints.rust]
 unsafe_code = "deny"

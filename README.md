@@ -1,6 +1,6 @@
-# `engine-style-parser`
+# `omena-engine-style-parser`
 
-Internal Rust crate for the parser/public-product track.
+Parser and CSS Modules intermediate extractor for Omena CSS analysis.
 
 Current scope:
 
@@ -24,20 +24,16 @@ Current scope:
 Non-goals in this first scaffold:
 
 - no TS/runtime integration yet
-- no public package commitment
 - no provider-facing Sass symbol feature yet
 - no cross-file Sass module resolution yet
 
 Primary check:
 
-- `cargo test --manifest-path rust/Cargo.toml -p engine-style-parser`
-- `pnpm check:rust-parser-css-modules-intermediate`
-- `pnpm check:rust-parser-index-producer`
-- `pnpm check:rust-parser-canonical-candidate`
-- `pnpm check:rust-parser-evaluator-candidates`
-- `pnpm check:rust-parser-canonical-producer`
-- `pnpm check:rust-parser-consumer-boundary`
-- `pnpm check:rust-parser-lane`
-- `pnpm check:rust-parser-public-product`
+- `cargo fmt --all --check`
+- `cargo test`
+- `cargo clippy --all-targets --all-features -- -D warnings`
+- `cargo publish --dry-run`
 
-This crate is intentionally internal. `publish = false` remains in effect at the workspace level.
+Monorepo release-facing bundle:
+
+- `pnpm check:rust-release-bundle`
