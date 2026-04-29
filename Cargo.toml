@@ -1,6 +1,6 @@
 [package]
 name = "omena-engine-style-parser"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = "MIT"
 description = "Parser and CSS Modules intermediate extractor for Omena CSS analysis"
