@@ -398,11 +398,37 @@ pub struct ParserIndexValueFactsV0 {
 #[serde(rename_all = "camelCase")]
 pub struct ParserIndexCustomPropertyFactsV0 {
     pub decl_names: Vec<String>,
+    pub decl_facts: Vec<ParserIndexCustomPropertyDeclFactV0>,
+    pub decl_context_selectors: Vec<String>,
+    pub decl_names_under_media: Vec<String>,
+    pub decl_names_under_supports: Vec<String>,
+    pub decl_names_under_layer: Vec<String>,
     pub ref_names: Vec<String>,
+    pub ref_facts: Vec<ParserIndexCustomPropertyRefFactV0>,
     pub selectors_with_refs_names: Vec<String>,
     pub selectors_with_refs_under_media_names: Vec<String>,
     pub selectors_with_refs_under_supports_names: Vec<String>,
     pub selectors_with_refs_under_layer_names: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserIndexCustomPropertyDeclFactV0 {
+    pub name: String,
+    pub selector_contexts: Vec<String>,
+    pub under_media: bool,
+    pub under_supports: bool,
+    pub under_layer: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ParserIndexCustomPropertyRefFactV0 {
+    pub name: String,
+    pub selector_contexts: Vec<String>,
+    pub under_media: bool,
+    pub under_supports: bool,
+    pub under_layer: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
@@ -630,7 +656,13 @@ struct IndexSummaryAcc {
     value_decl_ref_names: Vec<String>,
     value_decl_imported_value_ref_sources: Vec<String>,
     custom_property_decl_names: Vec<String>,
+    custom_property_decl_facts: Vec<ParserIndexCustomPropertyDeclFactV0>,
+    custom_property_decl_context_selectors: Vec<String>,
+    custom_property_decl_names_under_media: Vec<String>,
+    custom_property_decl_names_under_supports: Vec<String>,
+    custom_property_decl_names_under_layer: Vec<String>,
     custom_property_ref_names: Vec<String>,
+    custom_property_ref_facts: Vec<ParserIndexCustomPropertyRefFactV0>,
     selectors_with_custom_property_refs_names: Vec<String>,
     selectors_with_custom_property_refs_under_media_names: Vec<String>,
     selectors_with_custom_property_refs_under_supports_names: Vec<String>,
@@ -748,7 +780,14 @@ pub fn summarize_parity_lite(sheet: &Stylesheet) -> ParserParityLiteSummaryV0 {
 
 pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSummaryV0 {
     let mut acc = IndexSummaryAcc::default();
-    collect_index_names(&sheet.nodes, &mut acc, &[], false, None);
+    collect_index_names(
+        &sheet.nodes,
+        &mut acc,
+        &[],
+        false,
+        None,
+        WrapperContext::default(),
+    );
     let local_value_names: BTreeSet<String> = acc.value_decl_names.iter().cloned().collect();
     let imported_value_names: BTreeSet<String> = acc.value_import_names.iter().cloned().collect();
     let known_value_names: BTreeSet<String> = acc
@@ -837,8 +876,20 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
     acc.value_decl_imported_value_ref_sources.sort();
     acc.custom_property_decl_names.sort();
     acc.custom_property_decl_names.dedup();
+    acc.custom_property_decl_facts.sort();
+    acc.custom_property_decl_facts.dedup();
+    acc.custom_property_decl_context_selectors.sort();
+    acc.custom_property_decl_context_selectors.dedup();
+    acc.custom_property_decl_names_under_media.sort();
+    acc.custom_property_decl_names_under_media.dedup();
+    acc.custom_property_decl_names_under_supports.sort();
+    acc.custom_property_decl_names_under_supports.dedup();
+    acc.custom_property_decl_names_under_layer.sort();
+    acc.custom_property_decl_names_under_layer.dedup();
     acc.custom_property_ref_names.sort();
     acc.custom_property_ref_names.dedup();
+    acc.custom_property_ref_facts.sort();
+    acc.custom_property_ref_facts.dedup();
     acc.selectors_with_custom_property_refs_names.sort();
     acc.selectors_with_custom_property_refs_names.dedup();
     acc.selectors_with_custom_property_refs_under_media_names
@@ -998,7 +1049,13 @@ pub fn summarize_css_modules_intermediate(sheet: &Stylesheet) -> ParserIndexSumm
         },
         custom_properties: ParserIndexCustomPropertyFactsV0 {
             decl_names: acc.custom_property_decl_names,
+            decl_facts: acc.custom_property_decl_facts,
+            decl_context_selectors: acc.custom_property_decl_context_selectors,
+            decl_names_under_media: acc.custom_property_decl_names_under_media,
+            decl_names_under_supports: acc.custom_property_decl_names_under_supports,
+            decl_names_under_layer: acc.custom_property_decl_names_under_layer,
             ref_names: acc.custom_property_ref_names,
+            ref_facts: acc.custom_property_ref_facts,
             selectors_with_refs_names: acc.selectors_with_custom_property_refs_names,
             selectors_with_refs_under_media_names: acc
                 .selectors_with_custom_property_refs_under_media_names,
@@ -1388,6 +1445,41 @@ pub fn summarize_semantic_boundary(sheet: &Stylesheet) -> ParserSemanticBoundary
 fn summarize_custom_property_semantic_facts(
     facts: &ParserIndexCustomPropertyFactsV0,
 ) -> StyleCustomPropertySemanticFactsV0 {
+    let (resolved_ref_names, unresolved_ref_names) =
+        summarize_custom_property_resolution_names(facts);
+
+    StyleCustomPropertySemanticFactsV0 {
+        decl_names: facts.decl_names.clone(),
+        ref_names: facts.ref_names.clone(),
+        resolved_ref_names,
+        unresolved_ref_names,
+        selectors_with_refs_names: facts.selectors_with_refs_names.clone(),
+    }
+}
+
+fn summarize_custom_property_resolution_names(
+    facts: &ParserIndexCustomPropertyFactsV0,
+) -> (Vec<String>, Vec<String>) {
+    if !facts.decl_facts.is_empty() && !facts.ref_facts.is_empty() {
+        let mut resolved = BTreeSet::new();
+        let mut unresolved = BTreeSet::new();
+        for ref_fact in &facts.ref_facts {
+            if facts
+                .decl_facts
+                .iter()
+                .any(|decl_fact| custom_property_context_matches(decl_fact, ref_fact))
+            {
+                resolved.insert(ref_fact.name.clone());
+            } else {
+                unresolved.insert(ref_fact.name.clone());
+            }
+        }
+        return (
+            resolved.into_iter().collect(),
+            unresolved.into_iter().collect(),
+        );
+    }
+
     let decl_names: BTreeSet<&str> = facts.decl_names.iter().map(String::as_str).collect();
     let resolved_ref_names = facts
         .ref_names
@@ -1401,14 +1493,41 @@ fn summarize_custom_property_semantic_facts(
         .filter(|name| !decl_names.contains(name.as_str()))
         .cloned()
         .collect();
+    (resolved_ref_names, unresolved_ref_names)
+}
 
-    StyleCustomPropertySemanticFactsV0 {
-        decl_names: facts.decl_names.clone(),
-        ref_names: facts.ref_names.clone(),
-        resolved_ref_names,
-        unresolved_ref_names,
-        selectors_with_refs_names: facts.selectors_with_refs_names.clone(),
+fn custom_property_context_matches(
+    decl: &ParserIndexCustomPropertyDeclFactV0,
+    reference: &ParserIndexCustomPropertyRefFactV0,
+) -> bool {
+    if decl.name != reference.name {
+        return false;
     }
+    if decl.under_media && !reference.under_media {
+        return false;
+    }
+    if decl.under_supports && !reference.under_supports {
+        return false;
+    }
+    if decl.under_layer && !reference.under_layer {
+        return false;
+    }
+    if decl.selector_contexts.is_empty() {
+        return true;
+    }
+    decl.selector_contexts
+        .iter()
+        .any(|decl_selector| custom_property_selector_context_matches(decl_selector, reference))
+}
+
+fn custom_property_selector_context_matches(
+    decl_selector: &str,
+    reference: &ParserIndexCustomPropertyRefFactV0,
+) -> bool {
+    decl_selector == ":root"
+        || reference.selector_contexts.iter().any(|ref_selector| {
+            ref_selector == decl_selector || ref_selector.contains(decl_selector)
+        })
 }
 
 fn summarize_lossless_cst(sheet: &Stylesheet) -> ParserLosslessCstFactsV0 {
@@ -1555,6 +1674,7 @@ struct RuleReferenceFacts {
     has_animation_refs: bool,
     has_animation_name_refs: bool,
     has_custom_property_refs: bool,
+    custom_property_ref_names: Vec<String>,
     has_sass_variable_refs: bool,
     has_resolved_sass_variable_refs: bool,
     has_unresolved_sass_variable_refs: bool,
@@ -1836,8 +1956,10 @@ fn collect_rule_reference_facts(
                     value_span,
                     sass_ref_ctx,
                 );
-                if !find_css_var_ref_names(&declaration.value).is_empty() {
+                let custom_property_refs = find_css_var_ref_names(&declaration.value);
+                if !custom_property_refs.is_empty() {
                     facts.has_custom_property_refs = true;
+                    facts.custom_property_ref_names.extend(custom_property_refs);
                 }
             }
             Some(SyntaxNodePayload::AtRule(at_rule)) => match at_rule.kind {
@@ -1979,16 +2101,35 @@ fn collect_index_names(
     parent_branches: &[ResolvedSelectorBranch],
     parent_is_grouped: bool,
     current_sass_scope: Option<TextSpan>,
+    wrapper_ctx: WrapperContext,
 ) {
     for node in nodes {
         let mut next_parent_branches = parent_branches.to_vec();
         let mut next_parent_is_grouped = false;
         let mut split_child_branches = false;
         let mut next_sass_scope = current_sass_scope;
+        let mut child_wrapper_ctx = wrapper_ctx;
         match &node.payload {
             Some(SyntaxNodePayload::Rule(rule)) => {
                 next_sass_scope = Some(node.span);
                 let resolved_branches = resolve_rule_selector_branches(rule, parent_branches);
+                let custom_property_decl_names = custom_property_decl_names_in_rule(&node.children);
+                if !custom_property_decl_names.is_empty() {
+                    let selector_contexts = selector_contexts_for_rule(rule, &resolved_branches);
+                    acc.custom_property_decl_context_selectors
+                        .extend(selector_contexts.iter().cloned());
+                    acc.custom_property_decl_facts.extend(
+                        custom_property_decl_names.into_iter().map(|name| {
+                            ParserIndexCustomPropertyDeclFactV0 {
+                                name,
+                                selector_contexts: selector_contexts.clone(),
+                                under_media: wrapper_ctx.under_media,
+                                under_supports: wrapper_ctx.under_supports,
+                                under_layer: wrapper_ctx.under_layer,
+                            }
+                        }),
+                    );
+                }
                 if !resolved_branches.is_empty() {
                     let resolved: Vec<String> = resolved_branches
                         .iter()
@@ -2059,10 +2200,19 @@ fn collect_index_names(
                 }
             }
             Some(SyntaxNodePayload::AtRule(at_rule)) => match at_rule.kind {
-                AtRuleKind::Media
-                | AtRuleKind::Supports
-                | AtRuleKind::Layer
-                | AtRuleKind::AtRoot
+                AtRuleKind::Media => {
+                    child_wrapper_ctx.under_media = true;
+                    next_sass_scope = Some(node.span);
+                }
+                AtRuleKind::Supports => {
+                    child_wrapper_ctx.under_supports = true;
+                    next_sass_scope = Some(node.span);
+                }
+                AtRuleKind::Layer => {
+                    child_wrapper_ctx.under_layer = true;
+                    next_sass_scope = Some(node.span);
+                }
+                AtRuleKind::AtRoot
                 | AtRuleKind::Mixin
                 | AtRuleKind::Function
                 | AtRuleKind::Generic => {
@@ -2157,6 +2307,18 @@ fn collect_index_names(
                 if is_css_custom_property_name(&declaration.property) {
                     acc.custom_property_decl_names
                         .push(declaration.property.clone());
+                    if wrapper_ctx.under_media {
+                        acc.custom_property_decl_names_under_media
+                            .push(declaration.property.clone());
+                    }
+                    if wrapper_ctx.under_supports {
+                        acc.custom_property_decl_names_under_supports
+                            .push(declaration.property.clone());
+                    }
+                    if wrapper_ctx.under_layer {
+                        acc.custom_property_decl_names_under_layer
+                            .push(declaration.property.clone());
+                    }
                 }
                 if let Some(name) = parse_sass_variable_decl_name(&declaration.property) {
                     acc.sass_variable_decl_facts.push(SassVariableDeclFact {
@@ -2178,6 +2340,7 @@ fn collect_index_names(
                     std::slice::from_ref(parent_branch),
                     next_parent_is_grouped,
                     next_sass_scope,
+                    child_wrapper_ctx,
                 );
             }
         } else {
@@ -2187,9 +2350,43 @@ fn collect_index_names(
                 &next_parent_branches,
                 next_parent_is_grouped,
                 next_sass_scope,
+                child_wrapper_ctx,
             );
         }
     }
+}
+
+fn custom_property_decl_names_in_rule(children: &[SyntaxNode]) -> Vec<String> {
+    children
+        .iter()
+        .filter_map(|child| match &child.payload {
+            Some(SyntaxNodePayload::Declaration(declaration))
+                if is_css_custom_property_name(&declaration.property) =>
+            {
+                Some(declaration.property.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn selector_contexts_for_rule(
+    rule: &RulePayload,
+    resolved_branches: &[ResolvedSelectorBranch],
+) -> Vec<String> {
+    let mut contexts: Vec<String> = rule
+        .selector_groups
+        .iter()
+        .map(|group| group.raw.clone())
+        .chain(
+            resolved_branches
+                .iter()
+                .map(|branch| format!(".{}", branch.name)),
+        )
+        .collect();
+    contexts.sort();
+    contexts.dedup();
+    contexts
 }
 
 fn collect_index_refs_and_counts(
@@ -2545,8 +2742,22 @@ fn collect_index_selector_attachment_facts_with_context(
                     }
                 }
                 if ref_facts.has_custom_property_refs {
+                    let selector_contexts = selector_contexts_for_rule(rule, &resolved_branches);
                     acc.selectors_with_custom_property_refs_names
                         .extend(resolved.iter().cloned());
+                    acc.custom_property_ref_facts.extend(
+                        ref_facts
+                            .custom_property_ref_names
+                            .iter()
+                            .cloned()
+                            .map(|name| ParserIndexCustomPropertyRefFactV0 {
+                                name,
+                                selector_contexts: selector_contexts.clone(),
+                                under_media: wrapper_ctx.under_media,
+                                under_supports: wrapper_ctx.under_supports,
+                                under_layer: wrapper_ctx.under_layer,
+                            }),
+                    );
                     if wrapper_ctx.under_media {
                         acc.selectors_with_custom_property_refs_under_media_names
                             .extend(resolved.iter().cloned());
@@ -4696,8 +4907,8 @@ $gap: 1rem;
     #[test]
     fn index_summary_collects_css_custom_property_seed_facts() {
         let source = r#":root { --color-gray-700: #767678; }
-@media (min-width: 1px) { .btn { color: var(--color-gray-700); } }
-@supports (display: grid) { @layer ui { .card { color: var(--missing); } } }
+@media (min-width: 1px) { :root { --brand: white; } .btn { color: var(--color-gray-700); } }
+@supports (display: grid) { @layer ui { [data-theme="dark"] { --surface: black; } .card { color: var(--missing); } } }
 "#;
         let sheet = parse_stylesheet(StyleLanguage::Css, source);
         let summary = super::summarize_css_modules_intermediate(&sheet);
@@ -4705,11 +4916,94 @@ $gap: 1rem;
 
         assert_eq!(
             summary.custom_properties.decl_names,
-            vec!["--color-gray-700"]
+            vec!["--brand", "--color-gray-700", "--surface"]
+        );
+        assert_eq!(
+            summary
+                .custom_properties
+                .decl_facts
+                .iter()
+                .map(|fact| (
+                    fact.name.as_str(),
+                    fact.selector_contexts.as_slice(),
+                    fact.under_media,
+                    fact.under_supports,
+                    fact.under_layer,
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "--brand",
+                    vec![":root".to_string()].as_slice(),
+                    true,
+                    false,
+                    false,
+                ),
+                (
+                    "--color-gray-700",
+                    vec![":root".to_string()].as_slice(),
+                    false,
+                    false,
+                    false,
+                ),
+                (
+                    "--surface",
+                    vec!["[data-theme=\"dark\"]".to_string()].as_slice(),
+                    false,
+                    true,
+                    true,
+                ),
+            ]
+        );
+        assert_eq!(
+            summary.custom_properties.decl_context_selectors,
+            vec![":root", "[data-theme=\"dark\"]"]
+        );
+        assert_eq!(
+            summary.custom_properties.decl_names_under_media,
+            vec!["--brand"]
+        );
+        assert_eq!(
+            summary.custom_properties.decl_names_under_supports,
+            vec!["--surface"]
+        );
+        assert_eq!(
+            summary.custom_properties.decl_names_under_layer,
+            vec!["--surface"]
         );
         assert_eq!(
             summary.custom_properties.ref_names,
             vec!["--color-gray-700", "--missing"]
+        );
+        assert_eq!(
+            summary
+                .custom_properties
+                .ref_facts
+                .iter()
+                .map(|fact| (
+                    fact.name.as_str(),
+                    fact.selector_contexts.as_slice(),
+                    fact.under_media,
+                    fact.under_supports,
+                    fact.under_layer,
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "--color-gray-700",
+                    vec![".btn".to_string()].as_slice(),
+                    true,
+                    false,
+                    false,
+                ),
+                (
+                    "--missing",
+                    vec![".card".to_string()].as_slice(),
+                    false,
+                    true,
+                    true,
+                ),
+            ]
         );
         assert_eq!(
             summary.custom_properties.selectors_with_refs_names,
@@ -4746,6 +5040,33 @@ $gap: 1rem;
                 .custom_properties
                 .unresolved_ref_names,
             vec!["--missing"]
+        );
+    }
+
+    #[test]
+    fn semantic_boundary_respects_custom_property_selector_context() {
+        let source = r#".theme { --brand: #222; }
+.button { color: var(--brand); }
+.theme .button { border-color: var(--brand); }
+:root { --surface: white; }
+.card { background: var(--surface); }
+"#;
+        let sheet = parse_stylesheet(StyleLanguage::Css, source);
+        let semantic_boundary = super::summarize_semantic_boundary(&sheet);
+
+        assert_eq!(
+            semantic_boundary
+                .semantic_facts
+                .custom_properties
+                .resolved_ref_names,
+            vec!["--brand", "--surface"]
+        );
+        assert_eq!(
+            semantic_boundary
+                .semantic_facts
+                .custom_properties
+                .unresolved_ref_names,
+            vec!["--brand"]
         );
     }
 
